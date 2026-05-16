@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+gym.db
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Build artifacts
+*.egg-info/
+*.tsbuildinfo
+
+# Environment
+.env
+backend/.env
+frontend/.env
