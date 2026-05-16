@@ -376,7 +376,7 @@ function PlanPanel({
 
   useEffect(() => {
     setRows(contentToRows(plan.content));
-    setTitle(plan.title);
+    //setTitle(plan.title);
     setDescription(plan.description ?? "");
   }, [plan.content, plan.description, plan.title]);
 
@@ -474,7 +474,7 @@ function PlanPanel({
           <tbody>
             {rows.map((row, index) => (
               <tr key={index}>
-                <td>
+                <td data-label="Día">
                   <input
                     type="text"
                     value={row.dia}
@@ -482,7 +482,7 @@ function PlanPanel({
                     onChange={(event) => updateRow(index, "dia", event.target.value)}
                   />
                 </td>
-                <td>
+                <td data-label="Ejercicio">
                   <input
                     type="text"
                     value={row.ejercicio}
@@ -490,7 +490,7 @@ function PlanPanel({
                     onChange={(event) => updateRow(index, "ejercicio", event.target.value)}
                   />
                 </td>
-                <td>
+                <td data-label="Repeticiones">
                   <input
                     type="number"
                     min={0}
@@ -498,7 +498,7 @@ function PlanPanel({
                     onChange={(event) => updateRow(index, "repeticiones", event.target.value)}
                   />
                 </td>
-                <td>
+                <td data-label="Peso">
                   <input
                     type="text"
                     value={row.peso}
@@ -506,7 +506,7 @@ function PlanPanel({
                     onChange={(event) => updateRow(index, "peso", event.target.value)}
                   />
                 </td>
-                <td>
+                <td data-label="URL video">
                   <input
                     type="text"
                     value={row.url_video}
@@ -514,7 +514,7 @@ function PlanPanel({
                     onChange={(event) => updateRow(index, "url_video", event.target.value)}
                   />
                 </td>
-                <td>
+                <td className="row-actions">
                   <button
                     className="icon-button"
                     aria-label="Remove exercise"

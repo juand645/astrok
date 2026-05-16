@@ -814,4 +814,61 @@ h1 {
   .module-header h1 {
     font-size: 1.4rem;
   }
+
+  /* Detail tables → card stack on phones */
+  .table-wrap {
+    overflow-x: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .detail-table,
+  .detail-table tbody,
+  .detail-table tr,
+  .detail-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .detail-table thead {
+    display: none;
+  }
+
+  .detail-table tr {
+    margin-bottom: 10px;
+    padding: 12px;
+    border: 1px solid #dfe6da;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .detail-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .detail-table td {
+    padding: 6px 0;
+    border-bottom: 0;
+  }
+
+  .detail-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: #344139;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .detail-table input {
+    width: 100%;
+  }
+
+  .detail-table td.row-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
 }
