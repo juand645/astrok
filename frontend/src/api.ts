@@ -165,23 +165,67 @@ export async function fetchClientPlans(
   return response.json();
 }
 
+export type MeasurementSaveResponse = {
+  entry: { id: number; recorded_at: string } | null;
+  measures: Record<string, number | string>;
+};
+
 export async function recordMeasurement(
   accessToken: string,
   clientId: number,
-  measures: Record<string, number | string>,
-  notes?: string,
-): Promise<void> {
+  payload: {
+    measures: Record<string, number | string>;
+    removed?: string[];
+    notes?: string;
+  },
+): Promise<MeasurementSaveResponse> {
   const response = await fetch(`${API_URL}/api/clients/${clientId}/measurements`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ measures, notes: notes ?? null }),
+    body: JSON.stringify({
+      measures: payload.measures,
+      removed: payload.removed ?? [],
+      notes: payload.notes ?? null,
+    }),
   });
   if (!response.ok) {
-    throw new Error("Could not save measurements.");
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not save measurements.");
   }
+  return response.json();
+}
+
+export type CreatePlanPayload = {
+  client_id: number;
+  title: string;
+  plan_type?: string;
+  content?: PlanContent;
+  description?: string | null;
+  status?: string;
+  appointment_id?: number | null;
+  change_note?: string | null;
+};
+
+export async function createPlan(
+  accessToken: string,
+  payload: CreatePlanPayload,
+): Promise<PlanSummary> {
+  const response = await fetch(`${API_URL}/api/plans/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not create plan.");
+  }
+  return response.json();
 }
 
 export async function updatePlan(
@@ -205,6 +249,45 @@ export async function updatePlan(
   });
   if (!response.ok) {
     throw new Error("Could not save plan.");
+  }
+  return response.json();
+}
+
+export type NewPlanPayload = {
+  title: string;
+  plan_type?: string;
+  status?: string;
+  description?: string | null;
+  content?: PlanContent;
+};
+
+export type CreateClientPayload = {
+  full_name: string;
+  email: string;
+  username: string;
+  password: string;
+  birth_date?: string | null;
+  description?: string | null;
+  measures?: Record<string, number | string>;
+  relation_description?: string | null;
+  plans?: NewPlanPayload[];
+};
+
+export async function createClient(
+  accessToken: string,
+  payload: CreateClientPayload,
+): Promise<ClientDetail> {
+  const response = await fetch(`${API_URL}/api/clients/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not create client.");
   }
   return response.json();
 }

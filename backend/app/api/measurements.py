@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import assert_can_access_client, get_authenticated_user
 from app.core.database import get_db
 from app.models.client_measurement import ClientMeasurement
 from app.models.user import User
-from app.schemas.measurement import MeasurementCreate, MeasurementRead
+from app.schemas.measurement import (
+    MeasurementCreate,
+    MeasurementRead,
+    MeasurementSaveResponse,
+)
 from app.services.history import record_measurements
 
 router = APIRouter()
@@ -31,28 +36,50 @@ def list_client_measurements(
 
 @router.post(
     "/clients/{client_id}/measurements",
-    response_model=MeasurementRead,
-    status_code=status.HTTP_201_CREATED,
+    response_model=MeasurementSaveResponse,
 )
 def create_client_measurement(
     client_id: int,
     payload: MeasurementCreate,
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
-) -> ClientMeasurement:
+) -> MeasurementSaveResponse:
     assert_can_access_client(db, current_user, client_id)
 
-    if not payload.measures:
-        raise HTTPException(status_code=400, detail="measures must contain at least one field.")
+    if not payload.measures and not payload.removed:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one field in measures or removed.",
+        )
 
     client = db.get(User, client_id)
     if client is None or not client.active:
         raise HTTPException(status_code=404, detail="Client not found.")
 
-    return record_measurements(
-        db,
-        client=client,
-        measures=payload.measures,
-        recorded_by=current_user.id,
-        notes=payload.notes,
+    entry: ClientMeasurement | None = None
+    if payload.measures:
+        entry = record_measurements(
+            db,
+            client=client,
+            measures=payload.measures,
+            recorded_by=current_user.id,
+            notes=payload.notes,
+            commit=False,
+        )
+
+    if payload.removed:
+        cache = dict(client.measures or {})
+        for key in payload.removed:
+            cache.pop(key, None)
+        client.measures = cache
+        flag_modified(client, "measures")
+
+    db.commit()
+    if entry is not None:
+        db.refresh(entry)
+    db.refresh(client)
+
+    return MeasurementSaveResponse(
+        entry=MeasurementRead.model_validate(entry) if entry is not None else None,
+        measures=client.measures or {},
     )

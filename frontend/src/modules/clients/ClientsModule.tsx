@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
-import { Activity, CalendarDays, ChevronRight, Mail, Search } from "lucide-react";
+import { Activity, CalendarDays, ChevronRight, Mail, Plus, Search } from "lucide-react";
 import { Client, fetchMyClients } from "../../api";
 
 type ClientsModuleProps = {
   accessToken: string;
+  canCreate: boolean;
   onSelectClient: (clientId: number) => void;
+  onCreateClient: () => void;
 };
 
-export function ClientsModule({ accessToken, onSelectClient }: ClientsModuleProps) {
+export function ClientsModule({
+  accessToken,
+  canCreate,
+  onSelectClient,
+  onCreateClient,
+}: ClientsModuleProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +66,12 @@ export function ClientsModule({ accessToken, onSelectClient }: ClientsModuleProp
           <h1>Clients</h1>
           <p>Members assigned to you. {clients.length} total.</p>
         </div>
+        {canCreate ? (
+          <button className="primary-button" onClick={onCreateClient} type="button">
+            <Plus size={18} />
+            New client
+          </button>
+        ) : null}
       </header>
 
       <section className="client-toolbar" aria-label="Client filters">

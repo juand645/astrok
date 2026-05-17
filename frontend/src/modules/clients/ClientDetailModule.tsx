@@ -5,6 +5,7 @@ import {
   ExerciseEntry,
   PlanContent,
   PlanSummary,
+  createPlan,
   fetchClientDetail,
   fetchClientPlans,
   recordMeasurement,
@@ -30,6 +31,7 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddingPlan, setIsAddingPlan] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,9 +68,7 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
   }
 
   function handleMeasuresSaved(newMeasures: Record<string, number | string>) {
-    setClient((current) =>
-      current ? { ...current, measures: { ...current.measures, ...newMeasures } } : current,
-    );
+    setClient((current) => (current ? { ...current, measures: newMeasures } : current));
   }
 
   function handleClientUpdated(updated: ClientDetail) {
@@ -134,15 +134,244 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
 
       <section className="panel-stack">
         <h2>Plans</h2>
-        {plans.length === 0 ? (
-          <p className="muted">No plans yet for this client.</p>
-        ) : (
-          plans.map((plan) => (
-            <PlanPanel key={plan.id} accessToken={accessToken} plan={plan} onSaved={handlePlanSaved} />
-          ))
-        )}
+
+        {plans.length === 0 && !isAddingPlan ? (
+          <article className="panel">
+            <p className="muted">No plans yet for this client.</p>
+            <div className="panel-actions">
+              <button
+                className="secondary-button"
+                onClick={() => setIsAddingPlan(true)}
+                type="button"
+              >
+                <Plus size={16} /> Add plan
+              </button>
+            </div>
+          </article>
+        ) : null}
+
+        {isAddingPlan ? (
+          <AddPlanForm
+            accessToken={accessToken}
+            clientId={client.id}
+            onCreated={(plan) => {
+              setPlans((current) => [plan, ...current]);
+              setIsAddingPlan(false);
+            }}
+            onCancel={() => setIsAddingPlan(false)}
+          />
+        ) : null}
+
+        {plans.map((plan) => (
+          <PlanPanel
+            key={plan.id}
+            accessToken={accessToken}
+            plan={plan}
+            onSaved={handlePlanSaved}
+          />
+        ))}
       </section>
     </section>
+  );
+}
+
+function AddPlanForm({
+  accessToken,
+  clientId,
+  onCreated,
+  onCancel,
+}: {
+  accessToken: string;
+  clientId: number;
+  onCreated: (plan: PlanSummary) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState("draft");
+  const [rows, setRows] = useState<ExerciseRow[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function updateRow(index: number, field: keyof ExerciseRow, value: string) {
+    setRows((current) => {
+      const next = [...current];
+      next[index] = {
+        ...next[index],
+        [field]: field === "repeticiones" ? Number(value) || 0 : value,
+      };
+      return next;
+    });
+  }
+
+  function addRow() {
+    const lastDia = rows.length > 0 ? rows[rows.length - 1].dia : "dia_1";
+    setRows((current) => [
+      ...current,
+      { dia: lastDia, ejercicio: "", repeticiones: 3, peso: "", url_video: "" },
+    ]);
+  }
+
+  function removeRow(index: number) {
+    setRows((current) => current.filter((_, i) => i !== index));
+  }
+
+  async function save() {
+    setError(null);
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("Title is required.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const plan = await createPlan(accessToken, {
+        client_id: clientId,
+        title: trimmedTitle,
+        description: description.trim() || null,
+        status,
+        content: rowsToContent(rows),
+      });
+      onCreated(plan);
+    } catch (currentError) {
+      setError(currentError instanceof Error ? currentError.message : "Could not create plan.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <article className="panel">
+      <div className="panel-header">
+        <h3>New plan</h3>
+      </div>
+
+      <div className="form-grid">
+        <label className="field">
+          <span>Title *</span>
+          <input
+            type="text"
+            value={title}
+            placeholder="e.g. Fuerza base - Bloque 1"
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Status</span>
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="draft">draft</option>
+            <option value="approved">approved</option>
+            <option value="archived">archived</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="field">
+        <span>Description</span>
+        <textarea
+          rows={2}
+          value={description}
+          placeholder="Short description of this plan"
+          onChange={(event) => setDescription(event.target.value)}
+        />
+      </label>
+
+      <div className="table-wrap">
+        <table className="detail-table">
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Ejercicio</th>
+              <th>Repeticiones</th>
+              <th>Peso</th>
+              <th>URL video</th>
+              <th aria-label="Actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>
+                <td data-label="Día">
+                  <input
+                    type="text"
+                    value={row.dia}
+                    placeholder="dia_1"
+                    onChange={(event) => updateRow(index, "dia", event.target.value)}
+                  />
+                </td>
+                <td data-label="Ejercicio">
+                  <input
+                    type="text"
+                    value={row.ejercicio}
+                    placeholder="Press de banca"
+                    onChange={(event) => updateRow(index, "ejercicio", event.target.value)}
+                  />
+                </td>
+                <td data-label="Repeticiones">
+                  <input
+                    type="number"
+                    min={0}
+                    value={row.repeticiones}
+                    onChange={(event) => updateRow(index, "repeticiones", event.target.value)}
+                  />
+                </td>
+                <td data-label="Peso">
+                  <input
+                    type="text"
+                    value={row.peso}
+                    placeholder="70kg"
+                    onChange={(event) => updateRow(index, "peso", event.target.value)}
+                  />
+                </td>
+                <td data-label="URL video">
+                  <input
+                    type="text"
+                    value={row.url_video}
+                    placeholder="https://..."
+                    onChange={(event) => updateRow(index, "url_video", event.target.value)}
+                  />
+                </td>
+                <td className="row-actions">
+                  <button
+                    className="icon-button"
+                    aria-label="Remove exercise"
+                    type="button"
+                    onClick={() => removeRow(index)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="muted center">
+                  No exercises yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-actions">
+        <button className="secondary-button" onClick={addRow} type="button">
+          <Plus size={16} /> Add exercise
+        </button>
+      </div>
+
+      {error ? <p className="error-text">{error}</p> : null}
+
+      <div className="panel-actions">
+        <button className="secondary-button" onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button className="primary-button" onClick={save} disabled={isSaving} type="button">
+          <Save size={16} /> {isSaving ? "Creating..." : "Create plan"}
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -262,9 +491,9 @@ function MeasuresPanel({
 
   async function save() {
     setFeedback(null);
-    const diff = computeMeasuresDiff(originalRows, rows);
+    const { diff, removed } = computeMeasuresChanges(originalRows, rows);
 
-    if (Object.keys(diff).length === 0) {
+    if (Object.keys(diff).length === 0 && removed.length === 0) {
       setFeedbackKind("error");
       setFeedback("No changes to save.");
       return;
@@ -272,11 +501,24 @@ function MeasuresPanel({
 
     setIsSaving(true);
     try {
-      await recordMeasurement(accessToken, clientId, diff, "Edited from client detail view");
-      onSaved(diff);
-      setOriginalRows(rows);
+      const response = await recordMeasurement(accessToken, clientId, {
+        measures: diff,
+        removed,
+        notes: "Edited from client detail view",
+      });
+      onSaved(response.measures);
+      setOriginalRows(measuresToRows(response.measures));
+      setRows(measuresToRows(response.measures));
       setFeedbackKind("ok");
-      setFeedback(`Saved ${Object.keys(diff).length} measurement field(s).`);
+      const changed = Object.keys(diff).length;
+      const dropped = removed.length;
+      setFeedback(
+        `Saved` +
+          (changed ? ` ${changed} change(s)` : "") +
+          (changed && dropped ? "," : "") +
+          (dropped ? ` removed ${dropped} field(s)` : "") +
+          ".",
+      );
     } catch (currentError) {
       setFeedbackKind("error");
       setFeedback(currentError instanceof Error ? currentError.message : "Save failed.");
@@ -556,16 +798,24 @@ function measuresToRows(measures: Record<string, number | string>): MeasureRow[]
   return Object.entries(measures).map(([key, value]) => ({ key, value: String(value) }));
 }
 
-function computeMeasuresDiff(
+function computeMeasuresChanges(
   original: MeasureRow[],
   current: MeasureRow[],
-): Record<string, number | string> {
-  const originalMap = new Map(original.map((row) => [row.key, row.value]));
-  const diff: Record<string, number | string> = {};
+): { diff: Record<string, number | string>; removed: string[] } {
+  const originalMap = new Map(
+    original.filter((row) => row.key.trim() !== "").map((row) => [row.key.trim(), row.value]),
+  );
+  const currentKeys = new Set(
+    current.filter((row) => row.key.trim() !== "").map((row) => row.key.trim()),
+  );
 
+  const diff: Record<string, number | string> = {};
   for (const row of current) {
     const key = row.key.trim();
     if (!key) {
+      continue;
+    }
+    if (row.value.trim() === "") {
       continue;
     }
     const before = originalMap.get(key);
@@ -573,10 +823,17 @@ function computeMeasuresDiff(
       continue;
     }
     const numeric = Number(row.value);
-    diff[key] = !Number.isNaN(numeric) && row.value.trim() !== "" ? numeric : row.value;
+    diff[key] = !Number.isNaN(numeric) ? numeric : row.value;
   }
 
-  return diff;
+  const removed: string[] = [];
+  for (const key of originalMap.keys()) {
+    if (!currentKeys.has(key)) {
+      removed.push(key);
+    }
+  }
+
+  return { diff, removed };
 }
 
 function contentToRows(content: PlanContent | null | undefined): ExerciseRow[] {

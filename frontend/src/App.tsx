@@ -4,6 +4,7 @@ import { AuthUser, getCurrentUser } from "./api";
 import { LoginModule } from "./modules/auth/LoginModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
 import { ClientsModule } from "./modules/clients/ClientsModule";
+import { NewClientModule } from "./modules/clients/NewClientModule";
 import { DashboardModule } from "./modules/dashboard/DashboardModule";
 
 type ActiveView = "dashboard" | "clients" | "assistant";
@@ -14,6 +15,7 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(Boolean(accessToken));
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
@@ -43,11 +45,13 @@ export function App() {
     setCurrentUser(null);
     setActiveView("dashboard");
     setSelectedClientId(null);
+    setIsCreatingClient(false);
   }
 
   function navigateTo(view: ActiveView) {
     setActiveView(view);
     setSelectedClientId(null);
+    setIsCreatingClient(false);
   }
 
   if (isSessionLoading) {
@@ -126,14 +130,25 @@ export function App() {
       </aside>
 
       <section className="workspace">
-        {resolvedView === "clients" && selectedClientId !== null ? (
+        {resolvedView === "clients" && isCreatingClient ? (
+          <NewClientModule
+            accessToken={accessToken}
+            onCancel={() => setIsCreatingClient(false)}
+            onCreated={() => setIsCreatingClient(false)}
+          />
+        ) : resolvedView === "clients" && selectedClientId !== null ? (
           <ClientDetailModule
             accessToken={accessToken}
             clientId={selectedClientId}
             onBack={() => setSelectedClientId(null)}
           />
         ) : resolvedView === "clients" ? (
-          <ClientsModule accessToken={accessToken} onSelectClient={setSelectedClientId} />
+          <ClientsModule
+            accessToken={accessToken}
+            canCreate={!isClient}
+            onSelectClient={setSelectedClientId}
+            onCreateClient={() => setIsCreatingClient(true)}
+          />
         ) : resolvedView === "assistant" ? (
           <DashboardModule
             title="AI assistant"

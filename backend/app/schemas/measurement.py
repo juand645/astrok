@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class MeasurementCreate(BaseModel):
     measures: dict = Field(default_factory=dict)
+    removed: list[str] = Field(default_factory=list)
     notes: str | None = None
 
 
@@ -17,3 +18,8 @@ class MeasurementRead(BaseModel):
     notes: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class MeasurementSaveResponse(BaseModel):
+    entry: MeasurementRead | None = None
+    measures: dict

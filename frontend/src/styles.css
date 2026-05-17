@@ -636,6 +636,25 @@ h1 {
   flex-wrap: wrap;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.form-grid .field {
+  grid-column: auto;
+}
+
+.field select {
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #cdd8cf;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17201b;
+}
+
 .plan-title-row {
   display: flex;
   align-items: center;
@@ -813,6 +832,10 @@ h1 {
 
   .module-header h1 {
     font-size: 1.4rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 
   /* Detail tables → card stack on phones */

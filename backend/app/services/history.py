@@ -20,11 +20,14 @@ def record_measurements(
     measures: dict,
     recorded_by: int | None,
     notes: str | None = None,
+    commit: bool = True,
 ) -> ClientMeasurement:
     """Append a measurement reading and shallow-merge it into users.measures.
 
     Merging (not overwriting) lets a trainer log a partial check-in (e.g. just
     weight) without wiping the rest of the cached snapshot.
+
+    Pass ``commit=False`` when calling from inside a larger transaction.
     """
     entry = ClientMeasurement(
         client_id=client.id,
@@ -38,8 +41,11 @@ def record_measurements(
     client.measures = merged
     flag_modified(client, "measures")
 
-    db.commit()
-    db.refresh(entry)
+    if commit:
+        db.commit()
+        db.refresh(entry)
+    else:
+        db.flush()
     return entry
 
 
@@ -55,8 +61,12 @@ def create_plan_with_initial_version(
     status: str,
     appointment_id: int | None,
     change_note: str | None,
+    commit: bool = True,
 ) -> tuple[Plan, PlanVersion]:
-    """Create a plan and its version 1 snapshot atomically."""
+    """Create a plan and its version 1 snapshot atomically.
+
+    Pass ``commit=False`` when calling from inside a larger transaction.
+    """
     plan = Plan(
         client_id=client_id,
         professional_id=professional_id,
@@ -81,9 +91,12 @@ def create_plan_with_initial_version(
     )
     db.add(version)
 
-    db.commit()
-    db.refresh(plan)
-    db.refresh(version)
+    if commit:
+        db.commit()
+        db.refresh(plan)
+        db.refresh(version)
+    else:
+        db.flush()
     return plan, version
 
 
