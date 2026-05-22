@@ -7,6 +7,7 @@ from app.api import (
     clients,
     measurements,
     plans,
+    sessions,
     users,
 )
 
@@ -16,5 +17,6 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(clients.router, prefix="/clients", tags=["clients"])
 api_router.include_router(measurements.router, tags=["measurements"])
 api_router.include_router(plans.router, prefix="/plans", tags=["plans"])
+api_router.include_router(sessions.router, tags=["sessions"])
 api_router.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
 api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])

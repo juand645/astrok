@@ -61,8 +61,8 @@ class User(Base):
         back_populates="client",
         foreign_keys="Appointment.client_id",
     )
-    instructor_appointments = relationship(
+    professional_appointments = relationship(
         "Appointment",
-        back_populates="instructor",
-        foreign_keys="Appointment.instructor_id",
+        back_populates="professional",
+        foreign_keys="Appointment.professional_id",
     )

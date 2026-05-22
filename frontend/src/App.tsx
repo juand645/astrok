@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
-import { Bot, CalendarDays, Dumbbell, LogOut, Users } from "lucide-react";
+import {
+  Bot,
+  Calendar,
+  CalendarDays,
+  ClipboardCheck,
+  Dumbbell,
+  LogOut,
+  Users,
+} from "lucide-react";
 import { AuthUser, getCurrentUser } from "./api";
 import { LoginModule } from "./modules/auth/LoginModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
 import { ClientsModule } from "./modules/clients/ClientsModule";
 import { NewClientModule } from "./modules/clients/NewClientModule";
 import { DashboardModule } from "./modules/dashboard/DashboardModule";
+import { AppointmentsModule } from "./modules/appointments/AppointmentsModule";
+import { PlanSessionsModule } from "./modules/sessions/PlanSessionsModule";
 
-type ActiveView = "dashboard" | "clients" | "assistant";
+type ActiveView = "dashboard" | "clients" | "sessions" | "appointments" | "assistant";
 
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
@@ -47,6 +57,15 @@ export function App() {
     setSelectedClientId(null);
     setIsCreatingClient(false);
   }
+
+  useEffect(() => {
+    if (!accessToken) return;
+    function handleExpired() {
+      handleLogout();
+    }
+    window.addEventListener("auth:expired", handleExpired);
+    return () => window.removeEventListener("auth:expired", handleExpired);
+  }, [accessToken]);
 
   function navigateTo(view: ActiveView) {
     setActiveView(view);
@@ -110,6 +129,20 @@ export function App() {
             </button>
           )}
           <button
+            className={`nav-item ${resolvedView === "sessions" ? "active" : ""}`}
+            onClick={() => navigateTo("sessions")}
+          >
+            <ClipboardCheck size={18} />
+            Plan Sessions
+          </button>
+          <button
+            className={`nav-item ${resolvedView === "appointments" ? "active" : ""}`}
+            onClick={() => navigateTo("appointments")}
+          >
+            <Calendar size={18} />
+            Appointments
+          </button>
+          <button
             className={`nav-item ${resolvedView === "assistant" ? "active" : ""}`}
             onClick={() => navigateTo("assistant")}
           >
@@ -149,6 +182,10 @@ export function App() {
             onSelectClient={setSelectedClientId}
             onCreateClient={() => setIsCreatingClient(true)}
           />
+        ) : resolvedView === "sessions" ? (
+          <PlanSessionsModule accessToken={accessToken} currentUser={currentUser} />
+        ) : resolvedView === "appointments" ? (
+          <AppointmentsModule accessToken={accessToken} currentUser={currentUser} />
         ) : resolvedView === "assistant" ? (
           <DashboardModule
             title="AI assistant"

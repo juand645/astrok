@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/", response_model=list[UserRead])
 def list_users(db: Session = Depends(get_db)) -> list[User]:
     users = list(db.scalars(select(User).order_by(User.full_name)))
-    return [serialize_user(user) for user in users]
+    return [serialize_user(user, db) for user in users]
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -43,4 +43,4 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     db.add(user)
     db.commit()
     db.refresh(user)
-    return serialize_user(user)
+    return serialize_user(user, db)

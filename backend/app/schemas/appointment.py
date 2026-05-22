@@ -5,29 +5,38 @@ from pydantic import BaseModel, Field
 from app.models.appointment import AppointmentStatus
 
 
-class AppointmentBase(BaseModel):
+class AppointmentCreate(BaseModel):
     starts_at: datetime
-    ends_at: datetime
+    client_id: int | None = None
+    professional_id: int | None = None
     focus: str = "Personal training"
     notes: str | None = None
 
 
-class AppointmentCreate(AppointmentBase):
-    client_id: int
-    instructor_id: int
-
-
-class AppointmentRead(AppointmentBase):
+class AppointmentRead(BaseModel):
     id: int
+    starts_at: datetime
+    ends_at: datetime
     status: AppointmentStatus
+    focus: str
+    notes: str | None
     client_id: int
-    instructor_id: int
+    professional_id: int
 
     model_config = {"from_attributes": True}
 
 
+class AppointmentStatusUpdate(BaseModel):
+    status: AppointmentStatus
+
+
+class AvailabilitySlot(BaseModel):
+    starts_at: datetime
+    ends_at: datetime
+
+
 class AppointmentSuggestionRequest(BaseModel):
     client_id: int
-    instructor_id: int
+    professional_id: int
     preferred_days: list[str] = Field(default_factory=list)
     goal: str

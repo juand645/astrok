@@ -4,6 +4,7 @@ from app.models.plan import Plan
 from app.models.plan_version import PlanVersion
 from app.models.user import Role, User, UserRole
 from app.models.user_relation import UserRelation
+from app.models.workout_session import WorkoutSession
 
 __all__ = [
     "Appointment",
@@ -14,4 +15,5 @@ __all__ = [
     "User",
     "UserRelation",
     "UserRole",
+    "WorkoutSession",
 ]

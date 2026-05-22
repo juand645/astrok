@@ -18,5 +18,6 @@ class UserRead(BaseModel):
     username: str
     active: bool
     roles: list[str] = Field(default_factory=list)
+    professional_id: int | None = None
 
     model_config = {"from_attributes": True}
