@@ -21,10 +21,12 @@ CREATE TABLE users (
     email VARCHAR(160) NOT NULL UNIQUE,
     username VARCHAR(160) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    personal_number VARCHAR(40),
     description TEXT,
     birth_date DATE,
     measures JSONB NOT NULL DEFAULT '{}'::JSONB,
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    coach_messages_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -166,10 +168,29 @@ CREATE TABLE workout_sessions (
     performance JSONB NOT NULL DEFAULT '[]'::JSONB,
     rating SMALLINT,
     notes TEXT,
+    ai_response TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT workout_sessions_rating_check
         CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5))
+);
+
+-- =============================================================================
+-- PAR-Q assessments (health screening lifecycle)
+-- =============================================================================
+
+CREATE TABLE par_q_assessments (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    client_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requested_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    status VARCHAR(20) NOT NULL DEFAULT 'requested',
+    responses JSONB,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT par_q_status_check CHECK (status IN ('requested', 'completed', 'expired'))
 );
 
 -- =============================================================================
@@ -207,6 +228,10 @@ CREATE INDEX idx_workout_sessions_client
     ON workout_sessions(client_id, session_date DESC);
 CREATE INDEX idx_workout_sessions_performance_gin
     ON workout_sessions USING GIN (performance);
+
+CREATE INDEX idx_par_q_client_status ON par_q_assessments (client_id, status);
+CREATE INDEX idx_par_q_client_completed
+    ON par_q_assessments (client_id, completed_at DESC NULLS LAST);
 
 CREATE INDEX idx_users_measures_gin ON users USING GIN (measures);
 

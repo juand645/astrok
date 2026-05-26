@@ -20,6 +20,7 @@ class WorkoutSession(Base):
     performance: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow, nullable=False
     )

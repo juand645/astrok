@@ -16,6 +16,7 @@ class ClientCreate(BaseModel):
     email: EmailStr
     username: str = Field(min_length=1)
     password: str = Field(min_length=8)
+    personal_number: str | None = None
     birth_date: date | None = None
     description: str | None = None
     measures: dict = Field(default_factory=dict)
@@ -28,14 +29,23 @@ class ClientRead(BaseModel):
     full_name: str
     email: EmailStr
     username: str
+    personal_number: str | None = None
     description: str | None = None
     birth_date: date | None = None
     relation_type: str
     relation_description: str | None = None
+    professional_id: int | None = None
+    professional_name: str | None = None
 
 
 class ClientUpdate(BaseModel):
+    personal_number: str | None = None
     description: str | None = None
+
+
+class ClientTransfer(BaseModel):
+    new_professional_id: int
+    note: str | None = None
 
 
 class ClientDetail(BaseModel):
@@ -43,6 +53,7 @@ class ClientDetail(BaseModel):
     full_name: str
     email: EmailStr
     username: str
+    personal_number: str | None = None
     description: str | None = None
     birth_date: date | None = None
     measures: dict = Field(default_factory=dict)

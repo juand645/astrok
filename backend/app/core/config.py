@@ -10,8 +10,10 @@ class Settings(BaseSettings):
     database_schema: str | None = None
     frontend_origin: str = "http://192.168.100.5:5173"
     frontend_origins: str | None = None
-    ai_provider: str = "mock"
+    ai_provider: str = "anthropic"
     ai_api_key: str = ""
+    ai_model: str = "claude-haiku-4-5"
+    ai_language: str = "es"
     jwt_secret_key: str = "change-this-secret-in-development"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
@@ -20,12 +22,18 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
+        """List of allowed CORS origins parsed from ``FRONTEND_ORIGIN(S)``.
+
+        Accepts either a single value via ``FRONTEND_ORIGIN`` or a comma-
+        separated list via ``FRONTEND_ORIGINS``. The latter wins if set.
+        """
         raw_origins = self.frontend_origins or self.frontend_origin
         return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return a process-wide singleton of the parsed ``Settings`` (from `.env`)."""
     return Settings()
 
 

@@ -11,6 +11,9 @@ export type AuthUser = {
   full_name: string;
   email: string;
   username: string;
+  personal_number: string | null;
+  birth_date: string | null;
+  description: string | null;
   active: boolean;
   roles: string[];
   professional_id: number | null;
@@ -77,6 +80,53 @@ export async function login(identifier: string, password: string): Promise<Login
   return response.json();
 }
 
+export type ProfileUpdatePayload = {
+  full_name?: string;
+  email?: string;
+  personal_number?: string | null;
+  birth_date?: string | null;
+  description?: string | null;
+};
+
+export async function updateMyProfile(
+  accessToken: string,
+  payload: ProfileUpdatePayload,
+): Promise<AuthUser> {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not update profile.");
+  }
+  return response.json();
+}
+
+export async function changePassword(
+  accessToken: string,
+  payload: { current_password: string; new_password: string },
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not change password.");
+  }
+}
+
 export async function getCurrentUser(accessToken: string): Promise<AuthUser> {
   const response = await fetch(`${API_URL}/api/auth/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -95,10 +145,13 @@ export type Client = {
   full_name: string;
   email: string;
   username: string;
+  personal_number: string | null;
   description: string | null;
   birth_date: string | null;
   relation_type: string;
   relation_description: string | null;
+  professional_id: number | null;
+  professional_name: string | null;
 };
 
 export async function fetchMyClients(accessToken: string): Promise<Client[]> {
@@ -119,6 +172,7 @@ export type ClientDetail = {
   full_name: string;
   email: string;
   username: string;
+  personal_number: string | null;
   description: string | null;
   birth_date: string | null;
   measures: Record<string, number | string>;
@@ -243,6 +297,115 @@ export async function createPlan(
   return response.json();
 }
 
+export type ParQQuestion = {
+  id: string;
+  text: string;
+};
+
+export type ParQAnswer = {
+  id: string;
+  text: string;
+  answer: "yes" | "no";
+  follow_up?: string | null;
+};
+
+export type ParQResponses = {
+  questions: ParQAnswer[];
+  any_yes: boolean;
+  client_acknowledgement: string;
+  submitted_at: string;
+};
+
+export type ParQAssessment = {
+  id: number;
+  client_id: number;
+  requested_by: number;
+  requested_at: string;
+  completed_at: string | null;
+  status: "requested" | "completed" | "expired";
+  responses: ParQResponses | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchParQQuestions(accessToken: string): Promise<ParQQuestion[]> {
+  const response = await fetch(`${API_URL}/api/par-q/questions`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    throw new Error("Could not load PAR-Q questions.");
+  }
+  return response.json();
+}
+
+export async function fetchClientParQList(
+  accessToken: string,
+  clientId: number,
+): Promise<ParQAssessment[]> {
+  const response = await fetch(`${API_URL}/api/clients/${clientId}/par-q`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    throw new Error("Could not load PAR-Q assessments.");
+  }
+  return response.json();
+}
+
+export async function enableParQ(
+  accessToken: string,
+  clientId: number,
+): Promise<ParQAssessment> {
+  const response = await fetch(`${API_URL}/api/clients/${clientId}/par-q`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not enable PAR-Q.");
+  }
+  return response.json();
+}
+
+export async function submitParQ(
+  accessToken: string,
+  assessmentId: number,
+  payload: { answers: ParQAnswer[]; client_acknowledgement: string },
+): Promise<ParQAssessment> {
+  const response = await fetch(`${API_URL}/api/par-q/${assessmentId}/respond`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not submit PAR-Q.");
+  }
+  return response.json();
+}
+
+export async function deletePlan(
+  accessToken: string,
+  planId: number,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/plans/${planId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not delete plan.");
+  }
+}
+
 export async function updatePlan(
   accessToken: string,
   planId: number,
@@ -282,6 +445,7 @@ export type CreateClientPayload = {
   email: string;
   username: string;
   password: string;
+  personal_number?: string | null;
   birth_date?: string | null;
   description?: string | null;
   measures?: Record<string, number | string>;
@@ -328,9 +492,77 @@ export type WorkoutSession = {
   performance: PerformanceEntry[];
   rating: number | null;
   notes: string | null;
+  ai_response: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type CoachMessageResponse = {
+  message: string | null;
+  cached: boolean;
+  reason: string | null;
+};
+
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type DraftExercise = {
+  ejercicio: string;
+  repeticiones: number;
+  peso: string;
+  url_video: string;
+};
+
+export type PlanDraft = {
+  title: string;
+  description: string | null;
+  content: Record<string, DraftExercise[]>;
+};
+
+export type CoachChatResponse = {
+  message: ChatMessage;
+  plan: PlanDraft | null;
+  reason: string | null;
+};
+
+export async function sendCoachChatTurn(
+  accessToken: string,
+  clientId: number,
+  messages: ChatMessage[],
+): Promise<CoachChatResponse> {
+  const response = await fetch(`${API_URL}/api/clients/${clientId}/coach-chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ messages }),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not reach the plan coach.");
+  }
+  return response.json();
+}
+
+export async function fetchCoachMessage(
+  accessToken: string,
+  clientId: number,
+  sessionId: number,
+): Promise<CoachMessageResponse> {
+  const response = await fetch(
+    `${API_URL}/api/clients/${clientId}/sessions/${sessionId}/coach-message`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    throw new Error("Could not load coach message.");
+  }
+  return response.json();
+}
 
 export type WorkoutSessionInput = {
   plan_id: number;
@@ -488,7 +720,7 @@ export async function cancelAppointment(
 export async function updateClient(
   accessToken: string,
   clientId: number,
-  payload: { description?: string | null },
+  payload: { description?: string | null; personal_number?: string | null },
 ): Promise<ClientDetail> {
   const response = await fetch(`${API_URL}/api/clients/${clientId}`, {
     method: "PATCH",
@@ -501,6 +733,98 @@ export async function updateClient(
   if (!response.ok) {
     notifyIfSessionExpired(response);
     throw new Error("Could not save client.");
+  }
+  return response.json();
+}
+
+export type DashboardStats = {
+  active_clients: number;
+  active_plans: number;
+  sessions_this_week: number;
+  appointments_this_week: number;
+};
+
+export type DashboardAppointment = {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  status: "requested" | "confirmed" | "cancelled" | "completed";
+  focus: string;
+  client_id: number;
+  client_name: string;
+  client_username: string;
+};
+
+export type DashboardDraftPlan = {
+  id: number;
+  title: string;
+  updated_at: string;
+  client_id: number;
+  client_name: string;
+};
+
+export type DashboardParQAlert = {
+  assessment_id: number;
+  completed_at: string | null;
+  client_id: number;
+  client_name: string;
+};
+
+export type TrainerDashboard = {
+  stats: DashboardStats;
+  upcoming_appointments: DashboardAppointment[];
+  draft_plans: DashboardDraftPlan[];
+  par_q_alerts: DashboardParQAlert[];
+};
+
+export async function fetchTrainerDashboard(accessToken: string): Promise<TrainerDashboard> {
+  const response = await fetch(`${API_URL}/api/dashboard/trainer`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load dashboard.");
+  }
+  return response.json();
+}
+
+export type UserSummary = {
+  id: number;
+  full_name: string;
+  username: string;
+  roles: string[];
+};
+
+export async function fetchProfessionals(accessToken: string): Promise<UserSummary[]> {
+  const response = await fetch(`${API_URL}/api/users/professionals`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load professionals.");
+  }
+  return response.json();
+}
+
+export async function transferClient(
+  accessToken: string,
+  clientId: number,
+  payload: { new_professional_id: number; note?: string | null },
+): Promise<ClientDetail> {
+  const response = await fetch(`${API_URL}/api/clients/${clientId}/transfer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not transfer client.");
   }
   return response.json();
 }

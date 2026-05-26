@@ -36,6 +36,15 @@ def list_my_appointments(
     starts_after: Annotated[datetime | None, Query()] = None,
     starts_before: Annotated[datetime | None, Query()] = None,
 ) -> list[Appointment]:
+    """List appointments where the caller is either the client or the professional.
+
+    Query:
+        starts_after, starts_before: Optional ISO datetimes that bound the
+            ``starts_at`` field — used by the calendar grid to fetch one
+            week at a time.
+
+    Excludes cancelled appointments. Ordered by ``starts_at`` ascending.
+    """
     stmt = select(Appointment).where(
         or_(
             Appointment.client_id == current_user.id,
@@ -59,6 +68,21 @@ def professional_availability(
     starts_after: Annotated[datetime | None, Query()] = None,
     starts_before: Annotated[datetime | None, Query()] = None,
 ) -> list[AvailabilitySlot]:
+    """Return the trainer's busy slots in a date range, **anonymized**.
+
+    Used by the client booking grid to show which slots are taken without
+    exposing other clients' identities. Each returned entry is just
+    ``{starts_at, ends_at}`` — no client_id, no focus, no notes.
+
+    Path:
+        professional_id: The trainer being queried.
+
+    Query:
+        starts_after, starts_before: Optional time window bounds.
+
+    Access: the professional themselves, an assigned client of theirs (via
+    ``user_relations``), or an admin. Cancelled appointments are excluded.
+    """
     if current_user.id != professional_id and not actor_is_admin(current_user):
         relation = db.scalar(
             select(UserRelation).where(
@@ -94,6 +118,27 @@ def create_appointment(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> Appointment:
+    """Book a new appointment with strict timing + role-based field resolution.
+
+    Body (``AppointmentCreate``):
+        starts_at: ISO datetime with timezone. Must be on the hour, hour
+            5..18, in the future, and within ``MAX_DAYS_AHEAD`` (28 days).
+        client_id: Required when a non-client is booking. Ignored when a
+            client is the caller (auto-set to ``current_user.id``).
+        professional_id: Optional. For non-clients, defaults to caller.
+        focus: Free text label (default "Personal training").
+        notes: Free text.
+
+    Auto-resolution:
+      - Clients book with no ids: ``client_id = self``, ``professional_id``
+        is the latest active ``user_relations`` row's professional.
+      - Trainers/admins must specify ``client_id`` (and only book for
+        themselves as the professional, unless admin).
+
+    The endpoint enforces a 1-hour duration and rejects overlapping
+    appointments for the same professional with 409. Always created as
+    ``confirmed`` (no approval workflow).
+    """
     starts_at = payload.starts_at
     if starts_at.tzinfo is None:
         raise HTTPException(
@@ -190,6 +235,19 @@ def update_appointment_status(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> Appointment:
+    """Transition the appointment to a new status (used to cancel/confirm/complete).
+
+    Path:
+        appointment_id: The appointment to update.
+
+    Body (``AppointmentStatusUpdate``):
+        status: One of ``requested`` / ``confirmed`` / ``cancelled`` /
+            ``completed``.
+
+    Caller must be the appointment's client, its professional, or admin.
+    No time-cutoff for cancellation — anyone with access can cancel any
+    time before the start.
+    """
     appointment = db.get(Appointment, appointment_id)
     if appointment is None:
         raise HTTPException(status_code=404, detail="Appointment not found.")

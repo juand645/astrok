@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, Circle, Save, Search, Star } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Save, Search, Sparkles, Star } from "lucide-react";
 import {
   AuthUser,
   Client,
@@ -8,6 +8,7 @@ import {
   PlanSummary,
   WorkoutSession,
   fetchClientPlans,
+  fetchCoachMessage,
   fetchMyClients,
   fetchSessions,
   logSession,
@@ -235,12 +236,17 @@ function DayLogPanel({
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackKind, setFeedbackKind] = useState<"ok" | "error">("ok");
+  const [coachMessage, setCoachMessage] = useState<string | null>(
+    thisWeekSession?.ai_response ?? null,
+  );
+  const [isLoadingCoach, setIsLoadingCoach] = useState(false);
 
   useEffect(() => {
     setRows(buildInitialRows(prescribed, fillSource));
     setCompleted(thisWeekSession?.completed ?? false);
     setNotes(thisWeekSession?.notes ?? "");
     setRating(thisWeekSession?.rating ?? null);
+    setCoachMessage(thisWeekSession?.ai_response ?? null);
     setFeedback(null);
   }, [prescribed, fillSource, thisWeekSession]);
 
@@ -284,8 +290,21 @@ function DayLogPanel({
       });
       onSaved(session);
       setRating(session.rating);
+      setCoachMessage(session.ai_response ?? null);
       setFeedbackKind("ok");
       setFeedback(completed ? "Session saved and marked as completed." : "Session saved.");
+
+      if (session.completed && !session.ai_response) {
+        setIsLoadingCoach(true);
+        fetchCoachMessage(accessToken, clientId, session.id)
+          .then((res) => {
+            if (res.message) setCoachMessage(res.message);
+          })
+          .catch(() => {
+            /* coach message is non-critical; silently ignore */
+          })
+          .finally(() => setIsLoadingCoach(false));
+      }
     } catch (err) {
       setFeedbackKind("error");
       setFeedback(err instanceof Error ? err.message : "Save failed.");
@@ -316,6 +335,20 @@ function DayLogPanel({
           <CheckCircle2 size={18} />
           <span>Already completed for this week.</span>
           {thisWeekSession?.rating ? <StarRow value={thisWeekSession.rating} /> : null}
+        </div>
+      ) : null}
+
+      {coachMessage || isLoadingCoach ? (
+        <div className={`coach-card ${isLoadingCoach && !coachMessage ? "loading" : ""}`} role="status">
+          <div className="coach-card-header">
+            <Sparkles size={16} />
+            <span>Your coach says</span>
+          </div>
+          {coachMessage ? (
+            <p>{coachMessage}</p>
+          ) : (
+            <p className="muted">Reviewing your numbers…</p>
+          )}
         </div>
       ) : null}
 

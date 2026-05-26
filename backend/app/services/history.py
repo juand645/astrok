@@ -27,7 +27,21 @@ def record_measurements(
     Merging (not overwriting) lets a trainer log a partial check-in (e.g. just
     weight) without wiping the rest of the cached snapshot.
 
-    Pass ``commit=False`` when calling from inside a larger transaction.
+    Args:
+        db: Active SQLAlchemy session.
+        client: The ORM ``User`` whose cache to update.
+        measures: Dict of fields to record this reading (e.g. ``{"peso": 62}``).
+            Becomes a row in ``client_measurements`` and is merged into
+            ``users.measures``.
+        recorded_by: User id of whoever is logging (trainer, the client, or
+            admin). Stored on the history row for the audit trail.
+        notes: Optional free text on the history row.
+        commit: Pass ``False`` when this is part of a larger transaction
+            (e.g., ``POST /api/clients/`` creates client + measurements +
+            plans atomically). Default ``True`` commits immediately.
+
+    Returns:
+        The newly-inserted ``ClientMeasurement`` row.
     """
     entry = ClientMeasurement(
         client_id=client.id,
@@ -63,9 +77,24 @@ def create_plan_with_initial_version(
     change_note: str | None,
     commit: bool = True,
 ) -> tuple[Plan, PlanVersion]:
-    """Create a plan and its version 1 snapshot atomically.
+    """Insert a new plan row + its version 1 snapshot in a single transaction.
 
-    Pass ``commit=False`` when calling from inside a larger transaction.
+    Args:
+        db: Active SQLAlchemy session.
+        client_id: User id of the plan's owner (client).
+        professional_id: User id of the assigned trainer/coach.
+        title: Plan name.
+        plan_type: e.g. ``workout_routine``, ``nutrition_plan``.
+        content: JSON map of ``dia_N`` → exercise list.
+        description: Optional one-liner.
+        status: ``draft`` / ``approved`` / ``archived``.
+        appointment_id: Optional link to an appointment id.
+        change_note: Free text persisted on version 1.
+        commit: Pass ``False`` to defer commit when batching this with other
+            writes (e.g., the "create client + initial plans" transaction).
+
+    Returns:
+        ``(plan, version)`` — both refreshed when ``commit=True``.
     """
     plan = Plan(
         client_id=client_id,
@@ -110,7 +139,23 @@ def save_plan_version(
     changed_by: int | None,
     change_note: str | None,
 ) -> PlanVersion:
-    """Update a plan's current snapshot and append a new version row."""
+    """Update a plan's current snapshot and append a new version row.
+
+    Args:
+        db: Active session.
+        plan: The ORM ``Plan`` to mutate. Its ``content``, ``status``,
+            ``description``, and ``updated_at`` are updated in place.
+        content: New JSON content (overwrites ``plan.content``).
+        status: New status (overwrites ``plan.status``).
+        description: New description; pass through ``None`` to clear.
+        changed_by: User id of whoever made the change (stored on the
+            version row, NULL allowed).
+        change_note: Free text persisted on the version row.
+
+    Returns:
+        The newly-inserted ``PlanVersion`` (refreshed). Version number is
+        the previous max+1 for this plan.
+    """
     last_version = (
         db.scalar(select(func.max(PlanVersion.version)).where(PlanVersion.plan_id == plan.id)) or 0
     )

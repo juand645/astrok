@@ -23,6 +23,14 @@ def list_client_measurements(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> list[ClientMeasurement]:
+    """Return all measurement readings for a client, newest first.
+
+    Path:
+        client_id: Whose measurements to fetch.
+
+    Auth via ``assert_can_access_client``. Returns rows from
+    ``client_measurements`` ordered by ``recorded_at DESC``.
+    """
     assert_can_access_client(db, current_user, client_id)
 
     return list(
@@ -44,6 +52,21 @@ def create_client_measurement(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> MeasurementSaveResponse:
+    """Record a measurement check-in and/or remove fields from the cache.
+
+    Path:
+        client_id: Target client.
+
+    Body (``MeasurementCreate``):
+        measures: Optional dict of fields to add/update (e.g. ``{"peso": 62}``).
+            Non-empty entries become a new ``client_measurements`` row and
+            are merged into ``users.measures``.
+        removed: Optional list of keys to drop from ``users.measures``.
+        notes: Free text attached to the new history row (if any).
+
+    At least one of ``measures`` or ``removed`` must be provided.
+    Returns the (optional) history row + the new cache contents.
+    """
     assert_can_access_client(db, current_user, client_id)
 
     if not payload.measures and not payload.removed:

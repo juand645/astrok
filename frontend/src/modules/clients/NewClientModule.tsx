@@ -33,6 +33,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [personalNumber, setPersonalNumber] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [description, setDescription] = useState("");
   const [relationDescription, setRelationDescription] = useState("");
@@ -150,6 +151,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
       email: email.trim(),
       username: username.trim(),
       password,
+      personal_number: personalNumber.trim() || null,
       birth_date: birthDate || null,
       description: description.trim() || null,
       relation_description: relationDescription.trim() || null,
@@ -232,6 +234,15 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                 type="date"
                 value={birthDate}
                 onChange={(event) => setBirthDate(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Personal number</span>
+              <input
+                type="tel"
+                value={personalNumber}
+                placeholder="e.g. +52 555 123 4567"
+                onChange={(event) => setPersonalNumber(event.target.value)}
               />
             </label>
             <label className="field">

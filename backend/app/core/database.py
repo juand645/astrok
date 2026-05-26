@@ -30,6 +30,11 @@ class Base(DeclarativeBase):
 
 
 def ensure_database_schema() -> None:
+    """Create the configured PostgreSQL schema (e.g. `astrok`) if missing.
+
+    Called once on application startup from `main.py`. No-ops when running
+    against SQLite or when `DATABASE_SCHEMA` is not set.
+    """
     if not database_schema:
         return
 
@@ -38,6 +43,10 @@ def ensure_database_schema() -> None:
 
 
 def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency that yields a SQLAlchemy session and closes it after.
+
+    Use as ``db: Session = Depends(get_db)`` in any endpoint that touches the DB.
+    """
     db = SessionLocal()
     try:
         yield db

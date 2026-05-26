@@ -25,7 +25,14 @@ class WorkoutSessionRead(BaseModel):
     performance: list[dict]
     rating: int | None
     notes: str | None
+    ai_response: str | None = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CoachMessageResponse(BaseModel):
+    message: str | None
+    cached: bool = False
+    reason: str | None = None

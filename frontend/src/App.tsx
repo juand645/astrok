@@ -5,19 +5,33 @@ import {
   CalendarDays,
   ClipboardCheck,
   Dumbbell,
+  HeartPulse,
   LogOut,
+  Menu,
+  UserCircle,
   Users,
+  X,
 } from "lucide-react";
 import { AuthUser, getCurrentUser } from "./api";
 import { LoginModule } from "./modules/auth/LoginModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
 import { ClientsModule } from "./modules/clients/ClientsModule";
 import { NewClientModule } from "./modules/clients/NewClientModule";
+import { ClientDashboardModule } from "./modules/dashboard/ClientDashboardModule";
 import { DashboardModule } from "./modules/dashboard/DashboardModule";
 import { AppointmentsModule } from "./modules/appointments/AppointmentsModule";
+import { ParQModule } from "./modules/health/ParQModule";
+import { ProfileModule } from "./modules/profile/ProfileModule";
 import { PlanSessionsModule } from "./modules/sessions/PlanSessionsModule";
 
-type ActiveView = "dashboard" | "clients" | "sessions" | "appointments" | "assistant";
+type ActiveView =
+  | "dashboard"
+  | "clients"
+  | "sessions"
+  | "appointments"
+  | "health"
+  | "profile"
+  | "assistant";
 
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
@@ -26,6 +40,7 @@ export function App() {
   const [isSessionLoading, setIsSessionLoading] = useState(Boolean(accessToken));
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
@@ -71,6 +86,7 @@ export function App() {
     setActiveView(view);
     setSelectedClientId(null);
     setIsCreatingClient(false);
+    setIsMobileMenuOpen(false);
   }
 
   if (isSessionLoading) {
@@ -96,11 +112,16 @@ export function App() {
   }
 
   const isClient = currentUser.roles.includes("client");
-  const resolvedView: ActiveView = activeView === "clients" && isClient ? "dashboard" : activeView;
+  const resolvedView: ActiveView =
+    activeView === "clients" && isClient
+      ? "dashboard"
+      : activeView === "health" && !isClient
+      ? "dashboard"
+      : activeView;
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileMenuOpen ? "is-open" : "is-collapsed"}`}>
         <div className="brand">
           <div className="brand-mark">
             <Dumbbell size={22} />
@@ -110,6 +131,16 @@ export function App() {
             <span>Instructor console</span>
           </div>
         </div>
+
+        <button
+          type="button"
+          className="menu-toggle"
+          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((value) => !value)}
+        >
+          {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
 
         <nav className="nav-list" aria-label="Main navigation">
           <button
@@ -142,12 +173,28 @@ export function App() {
             <Calendar size={18} />
             Appointments
           </button>
+          {isClient ? (
+            <button
+              className={`nav-item ${resolvedView === "health" ? "active" : ""}`}
+              onClick={() => navigateTo("health")}
+            >
+              <HeartPulse size={18} />
+              Health
+            </button>
+          ) : null}
           <button
             className={`nav-item ${resolvedView === "assistant" ? "active" : ""}`}
             onClick={() => navigateTo("assistant")}
           >
             <Bot size={18} />
             AI Assistant
+          </button>
+          <button
+            className={`nav-item ${resolvedView === "profile" ? "active" : ""}`}
+            onClick={() => navigateTo("profile")}
+          >
+            <UserCircle size={18} />
+            Profile
           </button>
         </nav>
 
@@ -186,13 +233,44 @@ export function App() {
           <PlanSessionsModule accessToken={accessToken} currentUser={currentUser} />
         ) : resolvedView === "appointments" ? (
           <AppointmentsModule accessToken={accessToken} currentUser={currentUser} />
+        ) : resolvedView === "health" ? (
+          <ParQModule accessToken={accessToken} currentUser={currentUser} />
+        ) : resolvedView === "profile" ? (
+          <ProfileModule
+            accessToken={accessToken}
+            currentUser={currentUser}
+            onProfileUpdated={setCurrentUser}
+          />
         ) : resolvedView === "assistant" ? (
-          <DashboardModule
-            title="AI assistant"
-            description="Generate routine drafts and prepare appointment support from one workspace."
+          <section className="module-stack" aria-label="AI assistant">
+            <header className="module-header">
+              <div>
+                <h1>AI assistant</h1>
+                <p>
+                  Open a client to use the Plan Coach. Per-session AI feedback runs automatically
+                  when clients save a workout.
+                </p>
+              </div>
+            </header>
+          </section>
+        ) : isClient ? (
+          <ClientDashboardModule
+            accessToken={accessToken}
+            currentUser={currentUser}
+            onNavigateToSessions={() => navigateTo("sessions")}
+            onNavigateToHealth={() => navigateTo("health")}
           />
         ) : (
-          <DashboardModule />
+          <DashboardModule
+            accessToken={accessToken}
+            trainerName={currentUser.full_name}
+            onNavigate={(target) => navigateTo(target)}
+            onSelectClient={(clientId) => {
+              setActiveView("clients");
+              setIsCreatingClient(false);
+              setSelectedClientId(clientId);
+            }}
+          />
         )}
       </section>
     </main>

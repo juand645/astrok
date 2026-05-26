@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Save, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Search, X } from "lucide-react";
 import {
   Appointment,
   AppointmentCreatePayload,
@@ -506,9 +506,25 @@ function TrainerBookDialog({
   onCancel: () => void;
 }) {
   const [clientId, setClientId] = useState<number | null>(clients[0]?.id ?? null);
+  const [clientSearch, setClientSearch] = useState("");
   const [focus, setFocus] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const filteredClients = useMemo(() => {
+    const term = clientSearch.trim().toLowerCase();
+    if (!term) return clients;
+    return clients.filter(
+      (c) =>
+        c.full_name.toLowerCase().includes(term) ||
+        c.username.toLowerCase().includes(term) ||
+        c.email.toLowerCase().includes(term),
+    );
+  }, [clients, clientSearch]);
+
+  const selectedClient = clients.find((c) => c.id === clientId) ?? null;
+  const selectedHiddenByFilter =
+    selectedClient !== null && !filteredClients.some((c) => c.id === clientId);
 
   async function handleSubmit() {
     if (clientId === null) return;
@@ -540,16 +556,39 @@ function TrainerBookDialog({
         ) : (
           <label className="field">
             <span>Client</span>
-            <select
-              value={clientId ?? ""}
-              onChange={(e) => setClientId(Number(e.target.value))}
-            >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name}
-                </option>
-              ))}
-            </select>
+            <div className="search-field">
+              <Search size={16} />
+              <input
+                type="search"
+                value={clientSearch}
+                placeholder="Search by name, username, or email"
+                onChange={(e) => setClientSearch(e.target.value)}
+              />
+            </div>
+            {selectedHiddenByFilter && selectedClient ? (
+              <p className="muted picker-selected">
+                Selected: <strong>{selectedClient.full_name}</strong>
+              </p>
+            ) : null}
+            <div className="client-picker-list" role="listbox" aria-label="Choose a client">
+              {filteredClients.length === 0 ? (
+                <p className="muted center">No clients match your search.</p>
+              ) : (
+                filteredClients.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="option"
+                    aria-selected={c.id === clientId}
+                    className={`client-picker-item ${c.id === clientId ? "active" : ""}`}
+                    onClick={() => setClientId(c.id)}
+                  >
+                    <strong>{c.full_name}</strong>
+                    <span className="muted">@{c.username}</span>
+                  </button>
+                ))
+              )}
+            </div>
           </label>
         )}
         <label className="field">

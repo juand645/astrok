@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Mail, Phone, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import {
   ClientDetail,
   ExerciseEntry,
   PlanContent,
   PlanSummary,
   createPlan,
+  deletePlan,
   fetchClientDetail,
   fetchClientPlans,
   recordMeasurement,
   updateClient,
   updatePlan,
 } from "../../api";
+import { HealthScreeningCard } from "./HealthScreeningCard";
+import { PlanCoachPanel } from "./PlanCoachPanel";
 
 type ClientDetailModuleProps = {
   accessToken: string;
@@ -32,6 +35,7 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingPlan, setIsAddingPlan] = useState(false);
+  const [isCoachOpen, setIsCoachOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +115,11 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
             <span>
               <Mail size={14} /> {client.email}
             </span>
+            {client.personal_number ? (
+              <span>
+                <Phone size={14} /> {client.personal_number}
+              </span>
+            ) : null}
             {client.birth_date ? (
               <span>Born {formatBirthDate(client.birth_date)}</span>
             ) : null}
@@ -132,22 +141,24 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
         onSaved={handleMeasuresSaved}
       />
 
+      <HealthScreeningCard accessToken={accessToken} clientId={client.id} />
+
       <section className="panel-stack">
-        <h2>Plans</h2>
+        <div className="section-header">
+          <h2>Plans</h2>
+          {!isAddingPlan ? (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => setIsAddingPlan(true)}
+            >
+              <Plus size={16} /> Add plan
+            </button>
+          ) : null}
+        </div>
 
         {plans.length === 0 && !isAddingPlan ? (
-          <article className="panel">
-            <p className="muted">No plans yet for this client.</p>
-            <div className="panel-actions">
-              <button
-                className="secondary-button"
-                onClick={() => setIsAddingPlan(true)}
-                type="button"
-              >
-                <Plus size={16} /> Add plan
-              </button>
-            </div>
-          </article>
+          <p className="muted">No plans yet for this client.</p>
         ) : null}
 
         {isAddingPlan ? (
@@ -168,8 +179,35 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
             accessToken={accessToken}
             plan={plan}
             onSaved={handlePlanSaved}
+            onDeleted={(deletedId) =>
+              setPlans((current) => current.filter((p) => p.id !== deletedId))
+            }
           />
         ))}
+      </section>
+
+      <section className="panel-stack" aria-label="Plan coach">
+        {!isCoachOpen ? (
+          <div className="panel-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => setIsCoachOpen(true)}
+            >
+              <Sparkles size={16} /> Generate a plan with AI
+            </button>
+          </div>
+        ) : (
+          <PlanCoachPanel
+            accessToken={accessToken}
+            client={client}
+            onPlanCreated={(plan) => {
+              setPlans((current) => [plan, ...current]);
+              setIsCoachOpen(false);
+            }}
+            onClose={() => setIsCoachOpen(false)}
+          />
+        )}
       </section>
     </section>
   );
@@ -385,21 +423,25 @@ function ClientNotesPanel({
   onSaved: (client: ClientDetail) => void;
 }) {
   const [description, setDescription] = useState(client.description ?? "");
+  const [personalNumber, setPersonalNumber] = useState(client.personal_number ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackKind, setFeedbackKind] = useState<"ok" | "error">("ok");
 
   useEffect(() => {
     setDescription(client.description ?? "");
-  }, [client.description]);
+    setPersonalNumber(client.personal_number ?? "");
+  }, [client.description, client.personal_number]);
 
   async function save() {
     setFeedback(null);
     setIsSaving(true);
     try {
-      const trimmed = description.trim();
+      const trimmedDescription = description.trim();
+      const trimmedPersonalNumber = personalNumber.trim();
       const updated = await updateClient(accessToken, client.id, {
-        description: trimmed === "" ? null : trimmed,
+        description: trimmedDescription === "" ? null : trimmedDescription,
+        personal_number: trimmedPersonalNumber === "" ? null : trimmedPersonalNumber,
       });
       onSaved(updated);
       setFeedbackKind("ok");
@@ -412,7 +454,9 @@ function ClientNotesPanel({
     }
   }
 
-  const dirty = description.trim() !== (client.description ?? "");
+  const dirty =
+    description.trim() !== (client.description ?? "") ||
+    personalNumber.trim() !== (client.personal_number ?? "");
 
   return (
     <section className="panel">
@@ -420,6 +464,16 @@ function ClientNotesPanel({
         <h2>Notes</h2>
         <span>Goal, history, anything the client needs you to remember.</span>
       </div>
+
+      <label className="field">
+        <span>Personal number</span>
+        <input
+          type="tel"
+          value={personalNumber}
+          placeholder="e.g. +52 555 123 4567"
+          onChange={(event) => setPersonalNumber(event.target.value)}
+        />
+      </label>
 
       <label className="field">
         <span>Description</span>
@@ -604,13 +658,17 @@ function PlanPanel({
   accessToken,
   plan,
   onSaved,
+  onDeleted,
 }: {
   accessToken: string;
   plan: PlanSummary;
   onSaved: (plan: PlanSummary) => void;
+  onDeleted: (planId: number) => void;
 }) {
   const [rows, setRows] = useState<ExerciseRow[]>(() => contentToRows(plan.content));
   const [title, setTitle] = useState(plan.title);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
   const [description, setDescription] = useState(plan.description ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -643,6 +701,44 @@ function PlanPanel({
 
   function removeRow(index: number) {
     setRows((current) => current.filter((_, i) => i !== index));
+  }
+
+  async function handleApprove() {
+    setFeedback(null);
+    setIsApproving(true);
+    try {
+      const updated = await updatePlan(accessToken, plan.id, {
+        status: "approved",
+        change_note: "Plan approved",
+      });
+      onSaved(updated);
+      setFeedbackKind("ok");
+      setFeedback("Plan approved.");
+    } catch (err) {
+      setFeedbackKind("error");
+      setFeedback(err instanceof Error ? err.message : "Could not approve plan.");
+    } finally {
+      setIsApproving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        `Delete plan "${plan.title}"? Workout-session history will be preserved, but the plan won't appear in the list anymore.`,
+      )
+    ) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deletePlan(accessToken, plan.id);
+      onDeleted(plan.id);
+    } catch (err) {
+      setFeedbackKind("error");
+      setFeedback(err instanceof Error ? err.message : "Could not delete plan.");
+      setIsDeleting(false);
+    }
   }
 
   async function save() {
@@ -687,6 +783,28 @@ function PlanPanel({
             onChange={(event) => setTitle(event.target.value)}
           />
           <span className={`status-pill ${statusClass(plan.status)}`}>{plan.status}</span>
+          {plan.status === "draft" ? (
+            <button
+              type="button"
+              className="secondary-button approve-button"
+              onClick={handleApprove}
+              disabled={isApproving || isDeleting}
+              title="Approve this plan"
+            >
+              <CheckCircle2 size={14} />
+              {isApproving ? "Approving…" : "Approve"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Delete plan"
+            title="Delete plan"
+            onClick={handleDelete}
+            disabled={isDeleting}
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
         <span>{plan.plan_type}</span>
       </div>
