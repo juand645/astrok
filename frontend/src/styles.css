@@ -739,6 +739,112 @@ h1 {
   background: #9be564;
 }
 
+.day-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px dashed #cdd8cf;
+  border-radius: 8px;
+  color: #23655a;
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.day-add-button:hover {
+  border-style: solid;
+  background: #f1f8f3;
+}
+
+.plan-day-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 12px;
+}
+
+.plan-day-toolbar .day-tabs {
+  flex: 1 1 auto;
+}
+
+.plan-day-block {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px dashed #dfe6da;
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.plan-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.plan-day-header h3,
+.plan-day-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #17201b;
+}
+
+.circuito-block {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid #dfe6da;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.circuito-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.circuito-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #23655a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.circuito-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.circuito-series {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #344139;
+  font-weight: 700;
+}
+
+.circuito-series input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #cdd8cf;
+  border-radius: 6px;
+  background: #fbfcf8;
+  color: #17201b;
+  font: inherit;
+}
+
 .completion-toggle {
   display: inline-flex;
   align-items: center;
@@ -1316,6 +1422,20 @@ h1 {
 .session-table th:nth-child(4),
 .session-table td:nth-child(4) {
   width: 220px;
+}
+
+.session-table tr.session-circuit-header td {
+  padding: 12px 12px 6px;
+  background: #f6fbf3;
+  color: #165b33;
+  border-bottom: 1px solid #cfe8d6;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.session-table tr.session-circuit-header strong {
+  color: #17201b;
 }
 
 .week-nav {

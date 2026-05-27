@@ -22,6 +22,7 @@ CREATE TABLE users (
     username VARCHAR(160) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     personal_number VARCHAR(40),
+    id_number VARCHAR(40),
     description TEXT,
     birth_date DATE,
     measures JSONB NOT NULL DEFAULT '{}'::JSONB,

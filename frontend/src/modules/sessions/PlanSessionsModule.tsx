@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronRight, Circle, Save, Search, Sparkles, Star } from "lucide-react";
 import {
   AuthUser,
+  Circuito,
   Client,
   ExerciseEntry,
   PerformanceEntry,
@@ -192,7 +193,7 @@ function SessionEditor({
             clientId={clientId}
             planId={plan.id}
             dayKey={dayKey}
-            prescribed={plan.content[dayKey] ?? []}
+            dayContent={plan.content[dayKey]}
             thisWeekSession={slot.thisWeek}
             previousSession={slot.previous}
             isLoading={isLoadingSessions}
@@ -209,7 +210,7 @@ function DayLogPanel({
   clientId,
   planId,
   dayKey,
-  prescribed,
+  dayContent,
   thisWeekSession,
   previousSession,
   isLoading,
@@ -219,12 +220,24 @@ function DayLogPanel({
   clientId: number;
   planId: number;
   dayKey: string;
-  prescribed: ExerciseEntry[];
+  dayContent: Circuito[] | ExerciseEntry[] | undefined;
   thisWeekSession: WorkoutSession | null;
   previousSession: WorkoutSession | null;
   isLoading: boolean;
   onSaved: (session: WorkoutSession) => void;
 }) {
+  const circuitGroups = useMemo(() => toCircuitGroups(dayContent), [dayContent]);
+  const prescribed = useMemo(
+    () =>
+      circuitGroups.flatMap((group) =>
+        group.exercises.map((exercise) => ({
+          ...exercise,
+          series: group.series ?? exercise.series,
+        })),
+      ),
+    [circuitGroups],
+  );
+
   const fillSource = thisWeekSession ?? previousSession;
   const [rows, setRows] = useState<PerformanceEntry[]>(() =>
     buildInitialRows(prescribed, fillSource),
@@ -386,43 +399,74 @@ function DayLogPanel({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => {
-                const prescribedRow = prescribed[index];
-                const lastRow = matchLastEntry(lastReferencePerformance, row.ejercicio, index);
-                return (
-                  <tr key={`${row.ejercicio}-${index}`}>
-                    <td data-label="Ejercicio">
-                      <strong>{row.ejercicio}</strong>
-                    </td>
-                    <td data-label="Prescribed">
-                      <span className="muted">{summarize(prescribedRow)}</span>
-                    </td>
-                    <td data-label="Last">
-                      <span className="muted">{lastRow ? summarize(lastRow) : "—"}</span>
-                    </td>
-                    <td data-label="Today">
-                      <div className="today-inputs">
-                        <input
-                          type="text"
-                          aria-label={`${row.ejercicio} peso`}
-                          value={row.peso}
-                          placeholder="peso"
-                          onChange={(event) => updateRow(index, "peso", event.target.value)}
-                        />
-                        <input
-                          type="number"
-                          aria-label={`${row.ejercicio} repeticiones`}
-                          min={0}
-                          value={row.repeticiones}
-                          onChange={(event) =>
-                            updateRow(index, "repeticiones", event.target.value)
-                          }
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {(() => {
+                let runningIndex = 0;
+                return circuitGroups.map((group, groupIndex) => {
+                  const groupStart = runningIndex;
+                  runningIndex += group.exercises.length;
+                  const showHeader = group.series !== null;
+                  return (
+                    <Fragment key={`circuit-${groupIndex}`}>
+                      {showHeader ? (
+                        <tr className="session-circuit-header">
+                          <td colSpan={4}>
+                            <strong>Circuito {groupIndex + 1}</strong>
+                            <span className="muted"> · {group.series} series</span>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {group.exercises.map((_exercise, localIndex) => {
+                        const index = groupStart + localIndex;
+                        const row = rows[index];
+                        if (!row) return null;
+                        const prescribedRow = prescribed[index];
+                        const lastRow = matchLastEntry(
+                          lastReferencePerformance,
+                          row.ejercicio,
+                          index,
+                        );
+                        return (
+                          <tr key={`${row.ejercicio}-${index}`}>
+                            <td data-label="Ejercicio">
+                              <strong>{row.ejercicio}</strong>
+                            </td>
+                            <td data-label="Prescribed">
+                              <span className="muted">{summarize(prescribedRow)}</span>
+                            </td>
+                            <td data-label="Last">
+                              <span className="muted">
+                                {lastRow ? summarize(lastRow) : "—"}
+                              </span>
+                            </td>
+                            <td data-label="Today">
+                              <div className="today-inputs">
+                                <input
+                                  type="text"
+                                  aria-label={`${row.ejercicio} peso`}
+                                  value={row.peso}
+                                  placeholder="peso"
+                                  onChange={(event) =>
+                                    updateRow(index, "peso", event.target.value)
+                                  }
+                                />
+                                <input
+                                  type="number"
+                                  aria-label={`${row.ejercicio} repeticiones`}
+                                  min={0}
+                                  value={row.repeticiones}
+                                  onChange={(event) =>
+                                    updateRow(index, "repeticiones", event.target.value)
+                                  }
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
@@ -896,10 +940,32 @@ function matchLastEntry(
   return performance[fallbackIndex] ?? null;
 }
 
-function summarize(entry: PerformanceEntry | undefined): string {
-  if (!entry) return "—";
-  return `${entry.peso || "—"} × ${entry.repeticiones}`;
+type CircuitGroup = { series: number | null; exercises: ExerciseEntry[] };
+
+function toCircuitGroups(
+  value: Circuito[] | ExerciseEntry[] | undefined | null,
+): CircuitGroup[] {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const first = value[0] as { exercises?: unknown };
+  const isCircuitShape = first && typeof first === "object" && Array.isArray(first.exercises);
+  if (isCircuitShape) {
+    return (value as Circuito[]).map((circuito) => ({
+      series: circuito.series,
+      exercises: circuito.exercises,
+    }));
+  }
+  return [{ series: null, exercises: value as ExerciseEntry[] }];
 }
+
+function summarize(entry: PerformanceEntry | ExerciseEntry | undefined): string {
+  if (!entry) return "—";
+  const peso = entry.peso || "—";
+  const reps = entry.repeticiones;
+  const series = "series" in entry && typeof entry.series === "number" ? entry.series : null;
+  if (series && series > 0) return `${series} × ${reps} @ ${peso}`;
+  return `${peso} × ${reps}`;
+}
+
 
 function prettyDayLabel(dayKey: string): string {
   if (!dayKey) return "Day";

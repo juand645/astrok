@@ -1,6 +1,18 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Mail, Phone, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
+  CalendarPlus,
+  CheckCircle2,
+  IdCard,
+  Mail,
+  Phone,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import {
+  Circuito,
   ClientDetail,
   ExerciseEntry,
   PlanContent,
@@ -26,8 +38,6 @@ type MeasureRow = {
   key: string;
   value: string;
 };
-
-type ExerciseRow = ExerciseEntry & { dia: string };
 
 export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDetailModuleProps) {
   const [client, setClient] = useState<ClientDetail | null>(null);
@@ -118,6 +128,11 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
             {client.personal_number ? (
               <span>
                 <Phone size={14} /> {client.personal_number}
+              </span>
+            ) : null}
+            {client.id_number ? (
+              <span>
+                <IdCard size={14} /> {client.id_number}
               </span>
             ) : null}
             {client.birth_date ? (
@@ -227,31 +242,129 @@ function AddPlanForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("draft");
-  const [rows, setRows] = useState<ExerciseRow[]>([]);
+  const [content, setContent] = useState<PlanContent>(() => ({
+    dia_1: [defaultCircuito()],
+  }));
+  const [activeDay, setActiveDay] = useState<string>("dia_1");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function updateRow(index: number, field: keyof ExerciseRow, value: string) {
-    setRows((current) => {
-      const next = [...current];
-      next[index] = {
-        ...next[index],
-        [field]: field === "repeticiones" ? Number(value) || 0 : value,
-      };
-      return next;
+  const dayKeys = useMemo(() => Object.keys(content).sort(), [content]);
+
+  useEffect(() => {
+    if (dayKeys.length === 0) {
+      if (activeDay !== "") setActiveDay("");
+      return;
+    }
+    if (!dayKeys.includes(activeDay)) {
+      setActiveDay(dayKeys[0]);
+    }
+  }, [dayKeys, activeDay]);
+
+  function updateCircuitoSeries(dayKey: string, circuitoIndex: number, value: string) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const next = [...circuitos];
+      next[circuitoIndex] = { ...next[circuitoIndex], series: Number(value) || 0 };
+      return { ...current, [dayKey]: next };
     });
   }
 
-  function addRow() {
-    const lastDia = rows.length > 0 ? rows[rows.length - 1].dia : "dia_1";
-    setRows((current) => [
-      ...current,
-      { dia: lastDia, ejercicio: "", repeticiones: 3, peso: "", url_video: "" },
-    ]);
+  function updateExercise(
+    dayKey: string,
+    circuitoIndex: number,
+    exerciseIndex: number,
+    field: keyof ExerciseEntry,
+    value: string,
+  ) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const nextCircuitos = [...circuitos];
+      const nextExercises = [...nextCircuitos[circuitoIndex].exercises];
+      const numericFields = field === "repeticiones" || field === "series";
+      nextExercises[exerciseIndex] = {
+        ...nextExercises[exerciseIndex],
+        [field]: numericFields ? Number(value) || 0 : value,
+      } as ExerciseEntry;
+      nextCircuitos[circuitoIndex] = {
+        ...nextCircuitos[circuitoIndex],
+        exercises: nextExercises,
+      };
+      return { ...current, [dayKey]: nextCircuitos };
+    });
   }
 
-  function removeRow(index: number) {
-    setRows((current) => current.filter((_, i) => i !== index));
+  function addExercise(dayKey: string, circuitoIndex: number) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const next = [...circuitos];
+      next[circuitoIndex] = {
+        ...next[circuitoIndex],
+        exercises: [...next[circuitoIndex].exercises, defaultExercise()],
+      };
+      return { ...current, [dayKey]: next };
+    });
+  }
+
+  function removeExercise(dayKey: string, circuitoIndex: number, exerciseIndex: number) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const next = [...circuitos];
+      next[circuitoIndex] = {
+        ...next[circuitoIndex],
+        exercises: next[circuitoIndex].exercises.filter((_, i) => i !== exerciseIndex),
+      };
+      return { ...current, [dayKey]: next };
+    });
+  }
+
+  function addCircuito(dayKey: string) {
+    setContent((current) => ({
+      ...current,
+      [dayKey]: [...(current[dayKey] ?? []), defaultCircuito()],
+    }));
+  }
+
+  function removeCircuito(dayKey: string, circuitoIndex: number) {
+    const circuitos = content[dayKey] ?? [];
+    const count = circuitos[circuitoIndex]?.exercises.length ?? 0;
+    if (
+      count > 0 &&
+      !window.confirm(`Delete Circuito ${circuitoIndex + 1} and its ${count} exercise(s)?`)
+    ) {
+      return;
+    }
+    setContent((current) => {
+      const dayCircuitos = current[dayKey];
+      if (!dayCircuitos) return current;
+      return { ...current, [dayKey]: dayCircuitos.filter((_, i) => i !== circuitoIndex) };
+    });
+  }
+
+  function addDay() {
+    const nextKey = nextDayKey(dayKeys);
+    setContent((current) => ({ ...current, [nextKey]: [defaultCircuito()] }));
+    setActiveDay(nextKey);
+  }
+
+  function removeDay(dayKey: string) {
+    const circuitos = content[dayKey] ?? [];
+    const exerciseCount = circuitos.reduce((sum, c) => sum + c.exercises.length, 0);
+    if (
+      exerciseCount > 0 &&
+      !window.confirm(`Delete ${prettyDayLabel(dayKey)} and its ${exerciseCount} exercise(s)?`)
+    ) {
+      return;
+    }
+    setContent((current) => {
+      const next = { ...current };
+      delete next[dayKey];
+      return next;
+    });
   }
 
   async function save() {
@@ -269,7 +382,7 @@ function AddPlanForm({
         title: trimmedTitle,
         description: description.trim() || null,
         status,
-        content: rowsToContent(rows),
+        content: cleanContent(content),
       });
       onCreated(plan);
     } catch (currentError) {
@@ -278,6 +391,8 @@ function AddPlanForm({
       setIsSaving(false);
     }
   }
+
+  const activeCircuitos = activeDay ? content[activeDay] ?? [] : [];
 
   return (
     <article className="panel">
@@ -315,89 +430,209 @@ function AddPlanForm({
         />
       </label>
 
-      <div className="table-wrap">
-        <table className="detail-table">
-          <thead>
-            <tr>
-              <th>Día</th>
-              <th>Ejercicio</th>
-              <th>Repeticiones</th>
-              <th>Peso</th>
-              <th>URL video</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={index}>
-                <td data-label="Día">
-                  <input
-                    type="text"
-                    value={row.dia}
-                    placeholder="dia_1"
-                    onChange={(event) => updateRow(index, "dia", event.target.value)}
-                  />
-                </td>
-                <td data-label="Ejercicio">
-                  <input
-                    type="text"
-                    value={row.ejercicio}
-                    placeholder="Press de banca"
-                    onChange={(event) => updateRow(index, "ejercicio", event.target.value)}
-                  />
-                </td>
-                <td data-label="Repeticiones">
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.repeticiones}
-                    onChange={(event) => updateRow(index, "repeticiones", event.target.value)}
-                  />
-                </td>
-                <td data-label="Peso">
-                  <input
-                    type="text"
-                    value={row.peso}
-                    placeholder="70kg"
-                    onChange={(event) => updateRow(index, "peso", event.target.value)}
-                  />
-                </td>
-                <td data-label="URL video">
-                  <input
-                    type="text"
-                    value={row.url_video}
-                    placeholder="https://..."
-                    onChange={(event) => updateRow(index, "url_video", event.target.value)}
-                  />
-                </td>
-                <td className="row-actions">
-                  <button
-                    className="icon-button"
-                    aria-label="Remove exercise"
-                    type="button"
-                    onClick={() => removeRow(index)}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="muted center">
-                  No exercises yet.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="panel-actions">
-        <button className="secondary-button" onClick={addRow} type="button">
-          <Plus size={16} /> Add exercise
+      <div className="plan-day-toolbar">
+        <div className="day-tabs" role="tablist">
+          {dayKeys.map((day) => (
+            <button
+              key={day}
+              type="button"
+              role="tab"
+              aria-selected={day === activeDay}
+              className={`day-tab ${day === activeDay ? "active" : ""}`}
+              onClick={() => setActiveDay(day)}
+            >
+              {prettyDayLabel(day)}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="day-add-button"
+          onClick={addDay}
+          title="Add day"
+          aria-label="Add day"
+        >
+          <CalendarPlus size={14} />
+          <span>Add</span>
         </button>
       </div>
+
+      {dayKeys.length === 0 ? (
+        <p className="muted">No days yet. Add one to start prescribing exercises.</p>
+      ) : (
+        <>
+
+          {activeDay ? (
+            <div className="plan-day-block">
+              <div className="plan-day-header">
+                <h3>{prettyDayLabel(activeDay)}</h3>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Delete ${prettyDayLabel(activeDay)}`}
+                  title={`Delete ${prettyDayLabel(activeDay)}`}
+                  onClick={() => removeDay(activeDay)}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              {activeCircuitos.map((circuito, circuitoIndex) => (
+                <div className="circuito-block" key={circuitoIndex}>
+                  <div className="circuito-header">
+                    <h4>Circuito {circuitoIndex + 1}</h4>
+                    <div className="circuito-header-actions">
+                      <label className="circuito-series">
+                        <span>Series</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={circuito.series}
+                          onChange={(event) =>
+                            updateCircuitoSeries(activeDay, circuitoIndex, event.target.value)
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Delete Circuito ${circuitoIndex + 1}`}
+                        title={`Delete Circuito ${circuitoIndex + 1}`}
+                        onClick={() => removeCircuito(activeDay, circuitoIndex)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="table-wrap">
+                    <table className="detail-table">
+                      <thead>
+                        <tr>
+                          <th>Ejercicio</th>
+                          <th>Repeticiones</th>
+                          <th>Peso</th>
+                          <th>URL video</th>
+                          <th aria-label="Actions" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {circuito.exercises.map((exercise, exerciseIndex) => (
+                          <tr key={exerciseIndex}>
+                            <td data-label="Ejercicio">
+                              <input
+                                type="text"
+                                value={exercise.ejercicio}
+                                placeholder="Press de banca"
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "ejercicio",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td data-label="Repeticiones">
+                              <input
+                                type="number"
+                                min={0}
+                                value={exercise.repeticiones}
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "repeticiones",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td data-label="Peso">
+                              <input
+                                type="text"
+                                value={exercise.peso}
+                                placeholder="70kg"
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "peso",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td data-label="URL video">
+                              <input
+                                type="text"
+                                value={exercise.url_video}
+                                placeholder="https://..."
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "url_video",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="row-actions">
+                              <button
+                                className="icon-button"
+                                aria-label="Remove exercise"
+                                type="button"
+                                onClick={() =>
+                                  removeExercise(activeDay, circuitoIndex, exerciseIndex)
+                                }
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {circuito.exercises.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="muted center">
+                              No exercises in this circuit yet.
+                            </td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="panel-actions">
+                    <button
+                      className="secondary-button"
+                      onClick={() => addExercise(activeDay, circuitoIndex)}
+                      type="button"
+                    >
+                      <Plus size={16} /> Add exercise
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="panel-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => addCircuito(activeDay)}
+                  type="button"
+                >
+                  <Plus size={16} /> Add circuito
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
 
       {error ? <p className="error-text">{error}</p> : null}
 
@@ -424,6 +659,10 @@ function ClientNotesPanel({
 }) {
   const [description, setDescription] = useState(client.description ?? "");
   const [personalNumber, setPersonalNumber] = useState(client.personal_number ?? "");
+  const [idNumber, setIdNumber] = useState(client.id_number ?? "");
+  const [relationDescription, setRelationDescription] = useState(
+    client.relation_description ?? "",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackKind, setFeedbackKind] = useState<"ok" | "error">("ok");
@@ -431,7 +670,14 @@ function ClientNotesPanel({
   useEffect(() => {
     setDescription(client.description ?? "");
     setPersonalNumber(client.personal_number ?? "");
-  }, [client.description, client.personal_number]);
+    setIdNumber(client.id_number ?? "");
+    setRelationDescription(client.relation_description ?? "");
+  }, [
+    client.description,
+    client.personal_number,
+    client.id_number,
+    client.relation_description,
+  ]);
 
   async function save() {
     setFeedback(null);
@@ -439,9 +685,13 @@ function ClientNotesPanel({
     try {
       const trimmedDescription = description.trim();
       const trimmedPersonalNumber = personalNumber.trim();
+      const trimmedIdNumber = idNumber.trim();
+      const trimmedRelationDescription = relationDescription.trim();
       const updated = await updateClient(accessToken, client.id, {
         description: trimmedDescription === "" ? null : trimmedDescription,
         personal_number: trimmedPersonalNumber === "" ? null : trimmedPersonalNumber,
+        id_number: trimmedIdNumber === "" ? null : trimmedIdNumber,
+        relation_description: trimmedRelationDescription === "" ? null : trimmedRelationDescription,
       });
       onSaved(updated);
       setFeedbackKind("ok");
@@ -456,7 +706,9 @@ function ClientNotesPanel({
 
   const dirty =
     description.trim() !== (client.description ?? "") ||
-    personalNumber.trim() !== (client.personal_number ?? "");
+    personalNumber.trim() !== (client.personal_number ?? "") ||
+    idNumber.trim() !== (client.id_number ?? "") ||
+    relationDescription.trim() !== (client.relation_description ?? "");
 
   return (
     <section className="panel">
@@ -472,6 +724,26 @@ function ClientNotesPanel({
           value={personalNumber}
           placeholder="e.g. +52 555 123 4567"
           onChange={(event) => setPersonalNumber(event.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        <span>National ID number</span>
+        <input
+          type="text"
+          value={idNumber}
+          placeholder="e.g. CURP / DNI / passport"
+          onChange={(event) => setIdNumber(event.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        <span>Focus (relation note)</span>
+        <input
+          type="text"
+          value={relationDescription}
+          placeholder="e.g. Strength baseline"
+          onChange={(event) => setRelationDescription(event.target.value)}
         />
       </label>
 
@@ -665,7 +937,8 @@ function PlanPanel({
   onSaved: (plan: PlanSummary) => void;
   onDeleted: (planId: number) => void;
 }) {
-  const [rows, setRows] = useState<ExerciseRow[]>(() => contentToRows(plan.content));
+  const [content, setContent] = useState<PlanContent>(() => normalizeContent(plan.content));
+  const [activeDay, setActiveDay] = useState<string>("");
   const [title, setTitle] = useState(plan.title);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -674,33 +947,129 @@ function PlanPanel({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackKind, setFeedbackKind] = useState<"ok" | "error">("ok");
 
+  const dayKeys = useMemo(() => Object.keys(content).sort(), [content]);
+
   useEffect(() => {
-    setRows(contentToRows(plan.content));
-    //setTitle(plan.title);
+    setContent(normalizeContent(plan.content));
     setDescription(plan.description ?? "");
   }, [plan.content, plan.description, plan.title]);
 
-  function updateRow(index: number, field: keyof ExerciseRow, value: string) {
-    setRows((current) => {
-      const next = [...current];
-      next[index] = {
-        ...next[index],
-        [field]: field === "repeticiones" ? Number(value) || 0 : value,
-      };
-      return next;
+  useEffect(() => {
+    if (dayKeys.length === 0) {
+      if (activeDay !== "") setActiveDay("");
+      return;
+    }
+    if (!dayKeys.includes(activeDay)) {
+      setActiveDay(dayKeys[0]);
+    }
+  }, [dayKeys, activeDay]);
+
+  function updateCircuitoSeries(dayKey: string, circuitoIndex: number, value: string) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const next = [...circuitos];
+      next[circuitoIndex] = { ...next[circuitoIndex], series: Number(value) || 0 };
+      return { ...current, [dayKey]: next };
     });
   }
 
-  function addRow() {
-    const lastDay = rows.length > 0 ? rows[rows.length - 1].dia : "dia_1";
-    setRows((current) => [
-      ...current,
-      { dia: lastDay, ejercicio: "", repeticiones: 3, peso: "", url_video: "" },
-    ]);
+  function updateExercise(
+    dayKey: string,
+    circuitoIndex: number,
+    exerciseIndex: number,
+    field: keyof ExerciseEntry,
+    value: string,
+  ) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const nextCircuitos = [...circuitos];
+      const nextExercises = [...nextCircuitos[circuitoIndex].exercises];
+      const numericFields = field === "repeticiones" || field === "series";
+      nextExercises[exerciseIndex] = {
+        ...nextExercises[exerciseIndex],
+        [field]: numericFields ? Number(value) || 0 : value,
+      } as ExerciseEntry;
+      nextCircuitos[circuitoIndex] = {
+        ...nextCircuitos[circuitoIndex],
+        exercises: nextExercises,
+      };
+      return { ...current, [dayKey]: nextCircuitos };
+    });
   }
 
-  function removeRow(index: number) {
-    setRows((current) => current.filter((_, i) => i !== index));
+  function addExercise(dayKey: string, circuitoIndex: number) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const next = [...circuitos];
+      next[circuitoIndex] = {
+        ...next[circuitoIndex],
+        exercises: [...next[circuitoIndex].exercises, defaultExercise()],
+      };
+      return { ...current, [dayKey]: next };
+    });
+  }
+
+  function removeExercise(dayKey: string, circuitoIndex: number, exerciseIndex: number) {
+    setContent((current) => {
+      const circuitos = current[dayKey];
+      if (!circuitos) return current;
+      const next = [...circuitos];
+      next[circuitoIndex] = {
+        ...next[circuitoIndex],
+        exercises: next[circuitoIndex].exercises.filter((_, i) => i !== exerciseIndex),
+      };
+      return { ...current, [dayKey]: next };
+    });
+  }
+
+  function addCircuito(dayKey: string) {
+    setContent((current) => ({
+      ...current,
+      [dayKey]: [...(current[dayKey] ?? []), defaultCircuito()],
+    }));
+  }
+
+  function removeCircuito(dayKey: string, circuitoIndex: number) {
+    const circuitos = content[dayKey] ?? [];
+    const count = circuitos[circuitoIndex]?.exercises.length ?? 0;
+    if (
+      count > 0 &&
+      !window.confirm(`Delete Circuito ${circuitoIndex + 1} and its ${count} exercise(s)?`)
+    ) {
+      return;
+    }
+    setContent((current) => {
+      const dayCircuitos = current[dayKey];
+      if (!dayCircuitos) return current;
+      return { ...current, [dayKey]: dayCircuitos.filter((_, i) => i !== circuitoIndex) };
+    });
+  }
+
+  function addDay() {
+    const nextKey = nextDayKey(dayKeys);
+    setContent((current) => ({ ...current, [nextKey]: [defaultCircuito()] }));
+    setActiveDay(nextKey);
+  }
+
+  function removeDay(dayKey: string) {
+    const circuitos = content[dayKey] ?? [];
+    const exerciseCount = circuitos.reduce((sum, c) => sum + c.exercises.length, 0);
+    if (
+      exerciseCount > 0 &&
+      !window.confirm(
+        `Delete ${prettyDayLabel(dayKey)} and its ${exerciseCount} exercise(s)? You can still save this as a new version.`,
+      )
+    ) {
+      return;
+    }
+    setContent((current) => {
+      const next = { ...current };
+      delete next[dayKey];
+      return next;
+    });
   }
 
   async function handleApprove() {
@@ -752,11 +1121,11 @@ function PlanPanel({
 
     setIsSaving(true);
     try {
-      const content = rowsToContent(rows);
+      const cleaned = cleanContent(content);
       const trimmedDescription = description.trim();
       const updated = await updatePlan(accessToken, plan.id, {
         title: trimmedTitle,
-        content,
+        content: cleaned,
         description: trimmedDescription === "" ? null : trimmedDescription,
         change_note: "Edited from client detail view",
       });
@@ -770,6 +1139,8 @@ function PlanPanel({
       setIsSaving(false);
     }
   }
+
+  const activeCircuitos = activeDay ? content[activeDay] ?? [] : [];
 
   return (
     <article className="panel">
@@ -819,88 +1190,210 @@ function PlanPanel({
         />
       </label>
 
-      <div className="table-wrap">
-        <table className="detail-table">
-          <thead>
-            <tr>
-              <th>Día</th>
-              <th>Ejercicio</th>
-              <th>Repeticiones</th>
-              <th>Peso</th>
-              <th>URL video</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={index}>
-                <td data-label="Día">
-                  <input
-                    type="text"
-                    value={row.dia}
-                    placeholder="dia_1"
-                    onChange={(event) => updateRow(index, "dia", event.target.value)}
-                  />
-                </td>
-                <td data-label="Ejercicio">
-                  <input
-                    type="text"
-                    value={row.ejercicio}
-                    placeholder="Press de banca"
-                    onChange={(event) => updateRow(index, "ejercicio", event.target.value)}
-                  />
-                </td>
-                <td data-label="Repeticiones">
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.repeticiones}
-                    onChange={(event) => updateRow(index, "repeticiones", event.target.value)}
-                  />
-                </td>
-                <td data-label="Peso">
-                  <input
-                    type="text"
-                    value={row.peso}
-                    placeholder="70kg"
-                    onChange={(event) => updateRow(index, "peso", event.target.value)}
-                  />
-                </td>
-                <td data-label="URL video">
-                  <input
-                    type="text"
-                    value={row.url_video}
-                    placeholder="https://..."
-                    onChange={(event) => updateRow(index, "url_video", event.target.value)}
-                  />
-                </td>
-                <td className="row-actions">
-                  <button
-                    className="icon-button"
-                    aria-label="Remove exercise"
-                    onClick={() => removeRow(index)}
-                    type="button"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="muted center">
-                  No exercises yet.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+      <div className="plan-day-toolbar">
+        <div className="day-tabs" role="tablist">
+          {dayKeys.map((day) => (
+            <button
+              key={day}
+              type="button"
+              role="tab"
+              aria-selected={day === activeDay}
+              className={`day-tab ${day === activeDay ? "active" : ""}`}
+              onClick={() => setActiveDay(day)}
+            >
+              {prettyDayLabel(day)}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="day-add-button"
+          onClick={addDay}
+          title="Add day"
+          aria-label="Add day"
+        >
+          <CalendarPlus size={14} />
+          <span>Add</span>
+        </button>
       </div>
 
+      {dayKeys.length === 0 ? (
+        <p className="muted">No days yet. Add one to start prescribing exercises.</p>
+      ) : (
+        <>
+          {activeDay ? (
+            <div className="plan-day-block">
+              <div className="plan-day-header">
+                <h3>{prettyDayLabel(activeDay)}</h3>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Delete ${prettyDayLabel(activeDay)}`}
+                  title={`Delete ${prettyDayLabel(activeDay)}`}
+                  onClick={() => removeDay(activeDay)}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              {activeCircuitos.map((circuito, circuitoIndex) => (
+                <div className="circuito-block" key={circuitoIndex}>
+                  <div className="circuito-header">
+                    <h4>Circuito {circuitoIndex + 1}</h4>
+                    <div className="circuito-header-actions">
+                      <label className="circuito-series">
+                        <span>Series</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={circuito.series}
+                          onChange={(event) =>
+                            updateCircuitoSeries(activeDay, circuitoIndex, event.target.value)
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Delete Circuito ${circuitoIndex + 1}`}
+                        title={`Delete Circuito ${circuitoIndex + 1}`}
+                        onClick={() => removeCircuito(activeDay, circuitoIndex)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="table-wrap">
+                    <table className="detail-table">
+                      <thead>
+                        <tr>
+                          <th>Ejercicio</th>
+                          <th>Repeticiones</th>
+                          <th>Peso</th>
+                          <th>URL video</th>
+                          <th aria-label="Actions" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {circuito.exercises.map((exercise, exerciseIndex) => (
+                          <tr key={exerciseIndex}>
+                            <td data-label="Ejercicio">
+                              <input
+                                type="text"
+                                value={exercise.ejercicio}
+                                placeholder="Press de banca"
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "ejercicio",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td data-label="Repeticiones">
+                              <input
+                                type="number"
+                                min={0}
+                                value={exercise.repeticiones}
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "repeticiones",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td data-label="Peso">
+                              <input
+                                type="text"
+                                value={exercise.peso}
+                                placeholder="70kg"
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "peso",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td data-label="URL video">
+                              <input
+                                type="text"
+                                value={exercise.url_video}
+                                placeholder="https://..."
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "url_video",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="row-actions">
+                              <button
+                                className="icon-button"
+                                aria-label="Remove exercise"
+                                onClick={() =>
+                                  removeExercise(activeDay, circuitoIndex, exerciseIndex)
+                                }
+                                type="button"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {circuito.exercises.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="muted center">
+                              No exercises in this circuit yet.
+                            </td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="panel-actions">
+                    <button
+                      className="secondary-button"
+                      onClick={() => addExercise(activeDay, circuitoIndex)}
+                      type="button"
+                    >
+                      <Plus size={16} /> Add exercise
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="panel-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => addCircuito(activeDay)}
+                  type="button"
+                >
+                  <Plus size={16} /> Add circuito
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
+
       <div className="panel-actions">
-        <button className="secondary-button" onClick={addRow} type="button">
-          <Plus size={16} /> Add exercise
-        </button>
         <button className="primary-button" onClick={save} disabled={isSaving} type="button">
           <Save size={16} /> {isSaving ? "Saving..." : "Save as new version"}
         </button>
@@ -954,45 +1447,95 @@ function computeMeasuresChanges(
   return { diff, removed };
 }
 
-function contentToRows(content: PlanContent | null | undefined): ExerciseRow[] {
-  if (!content) {
-    return [];
-  }
-  const rows: ExerciseRow[] = [];
-  const sortedDays = Object.keys(content).sort();
-  for (const day of sortedDays) {
-    const exercises = content[day];
-    if (!Array.isArray(exercises)) {
-      continue;
-    }
-    for (const exercise of exercises) {
-      rows.push({
-        dia: day,
-        ejercicio: exercise.ejercicio ?? "",
-        repeticiones: Number(exercise.repeticiones) || 0,
-        peso: exercise.peso ?? "",
-        url_video: exercise.url_video ?? "",
-      });
-    }
-  }
-  return rows;
+function defaultExercise(): ExerciseEntry {
+  return { ejercicio: "", repeticiones: 10, peso: "", url_video: "" };
 }
 
-function rowsToContent(rows: ExerciseRow[]): PlanContent {
-  const content: PlanContent = {};
-  for (const row of rows) {
-    const day = row.dia.trim() || "sin_dia";
-    if (!content[day]) {
-      content[day] = [];
+function defaultCircuito(): Circuito {
+  return { series: 3, exercises: [defaultExercise()] };
+}
+
+function normalizeContent(content: unknown): PlanContent {
+  if (!content || typeof content !== "object") return {};
+  const normalized: PlanContent = {};
+  for (const [day, value] of Object.entries(content as Record<string, unknown>)) {
+    if (!Array.isArray(value)) continue;
+    if (value.length === 0) {
+      normalized[day] = [];
+      continue;
     }
-    content[day].push({
-      ejercicio: row.ejercicio,
-      repeticiones: row.repeticiones,
-      peso: row.peso,
-      url_video: row.url_video,
-    });
+    const firstItem = value[0];
+    const isCircuitShape =
+      firstItem &&
+      typeof firstItem === "object" &&
+      "exercises" in (firstItem as Record<string, unknown>) &&
+      Array.isArray((firstItem as { exercises?: unknown }).exercises);
+
+    if (isCircuitShape) {
+      normalized[day] = (value as Circuito[]).map((circuito) => ({
+        series: typeof circuito.series === "number" ? circuito.series : 3,
+        exercises: (Array.isArray(circuito.exercises) ? circuito.exercises : []).map(
+          (exercise) => ({
+            ejercicio: exercise.ejercicio ?? "",
+            repeticiones: Number(exercise.repeticiones) || 0,
+            peso: exercise.peso ?? "",
+            url_video: exercise.url_video ?? "",
+          }),
+        ),
+      }));
+    } else {
+      const legacy = value as ExerciseEntry[];
+      const wrappedSeries =
+        typeof legacy[0]?.series === "number" && legacy[0].series! > 0 ? legacy[0].series! : 3;
+      normalized[day] = [
+        {
+          series: wrappedSeries,
+          exercises: legacy.map((exercise) => ({
+            ejercicio: exercise.ejercicio ?? "",
+            repeticiones: Number(exercise.repeticiones) || 0,
+            peso: exercise.peso ?? "",
+            url_video: exercise.url_video ?? "",
+          })),
+        },
+      ];
+    }
   }
-  return content;
+  return normalized;
+}
+
+function cleanContent(content: PlanContent): PlanContent {
+  const cleaned: PlanContent = {};
+  for (const [day, circuitos] of Object.entries(content)) {
+    cleaned[day] = circuitos.map((circuito) => ({
+      series: typeof circuito.series === "number" ? circuito.series : 0,
+      exercises: circuito.exercises.map((exercise) => ({
+        ejercicio: exercise.ejercicio,
+        repeticiones: exercise.repeticiones,
+        peso: exercise.peso,
+        url_video: exercise.url_video,
+      })),
+    }));
+  }
+  return cleaned;
+}
+
+function nextDayKey(existing: string[]): string {
+  let maxNumber = 0;
+  for (const key of existing) {
+    const match = key.match(/^dia[_-]?(\d+)$/i);
+    if (match) {
+      const value = parseInt(match[1], 10);
+      if (!Number.isNaN(value) && value > maxNumber) maxNumber = value;
+    }
+  }
+  return `dia_${maxNumber + 1}`;
+}
+
+function prettyDayLabel(dayKey: string): string {
+  if (!dayKey) return "Day";
+  const match = dayKey.match(/^dia[_-]?(\d+)$/i);
+  if (match) return `Día ${match[1]}`;
+  return dayKey;
 }
 
 function getInitials(fullName: string) {

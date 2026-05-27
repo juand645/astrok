@@ -12,6 +12,7 @@ export type AuthUser = {
   email: string;
   username: string;
   personal_number: string | null;
+  id_number: string | null;
   birth_date: string | null;
   description: string | null;
   active: boolean;
@@ -84,6 +85,7 @@ export type ProfileUpdatePayload = {
   full_name?: string;
   email?: string;
   personal_number?: string | null;
+  id_number?: string | null;
   birth_date?: string | null;
   description?: string | null;
 };
@@ -146,6 +148,7 @@ export type Client = {
   email: string;
   username: string;
   personal_number: string | null;
+  id_number: string | null;
   description: string | null;
   birth_date: string | null;
   relation_type: string;
@@ -173,6 +176,7 @@ export type ClientDetail = {
   email: string;
   username: string;
   personal_number: string | null;
+  id_number: string | null;
   description: string | null;
   birth_date: string | null;
   measures: Record<string, number | string>;
@@ -182,12 +186,38 @@ export type ClientDetail = {
 
 export type ExerciseEntry = {
   ejercicio: string;
+  series?: number;
   repeticiones: number;
   peso: string;
   url_video: string;
 };
 
-export type PlanContent = Record<string, ExerciseEntry[]>;
+export type Circuito = {
+  series: number;
+  exercises: ExerciseEntry[];
+};
+
+export type PlanContent = Record<string, Circuito[]>;
+
+export type LegacyPlanContent = Record<string, ExerciseEntry[]>;
+
+export function flattenDayContent(
+  value: Circuito[] | ExerciseEntry[] | undefined | null,
+): ExerciseEntry[] {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const first = value[0] as { exercises?: unknown };
+  const isCircuitShape = first && typeof first === "object" && Array.isArray(first.exercises);
+  if (!isCircuitShape) {
+    return value as ExerciseEntry[];
+  }
+  const flat: ExerciseEntry[] = [];
+  for (const circuito of value as Circuito[]) {
+    for (const exercise of circuito.exercises) {
+      flat.push({ ...exercise, series: circuito.series });
+    }
+  }
+  return flat;
+}
 
 export type PlanSummary = {
   id: number;
@@ -446,6 +476,7 @@ export type CreateClientPayload = {
   username: string;
   password: string;
   personal_number?: string | null;
+  id_number?: string | null;
   birth_date?: string | null;
   description?: string | null;
   measures?: Record<string, number | string>;
@@ -720,7 +751,12 @@ export async function cancelAppointment(
 export async function updateClient(
   accessToken: string,
   clientId: number,
-  payload: { description?: string | null; personal_number?: string | null },
+  payload: {
+    description?: string | null;
+    personal_number?: string | null;
+    id_number?: string | null;
+    relation_description?: string | null;
+  },
 ): Promise<ClientDetail> {
   const response = await fetch(`${API_URL}/api/clients/${clientId}`, {
     method: "PATCH",

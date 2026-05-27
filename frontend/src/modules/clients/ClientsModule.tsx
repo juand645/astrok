@@ -4,6 +4,7 @@ import {
   ArrowRightLeft,
   CalendarDays,
   ChevronRight,
+  IdCard,
   Mail,
   Phone,
   Plus,
@@ -139,6 +140,12 @@ export function ClientsModule({
                   <span>
                     <Phone size={16} />
                     {client.personal_number}
+                  </span>
+                ) : null}
+                {client.id_number ? (
+                  <span>
+                    <IdCard size={16} />
+                    {client.id_number}
                   </span>
                 ) : null}
                 {client.description ? (

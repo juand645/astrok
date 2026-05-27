@@ -54,6 +54,7 @@ function BasicInfoPanel({
   const [fullName, setFullName] = useState(currentUser.full_name);
   const [email, setEmail] = useState(currentUser.email);
   const [personalNumber, setPersonalNumber] = useState(currentUser.personal_number ?? "");
+  const [idNumber, setIdNumber] = useState(currentUser.id_number ?? "");
   const [birthDate, setBirthDate] = useState(currentUser.birth_date ?? "");
   const [description, setDescription] = useState(currentUser.description ?? "");
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +65,7 @@ function BasicInfoPanel({
     setFullName(currentUser.full_name);
     setEmail(currentUser.email);
     setPersonalNumber(currentUser.personal_number ?? "");
+    setIdNumber(currentUser.id_number ?? "");
     setBirthDate(currentUser.birth_date ?? "");
     setDescription(currentUser.description ?? "");
   }, [currentUser]);
@@ -72,6 +74,7 @@ function BasicInfoPanel({
     fullName.trim() !== currentUser.full_name ||
     email.trim() !== currentUser.email ||
     personalNumber.trim() !== (currentUser.personal_number ?? "") ||
+    idNumber.trim() !== (currentUser.id_number ?? "") ||
     (birthDate || null) !== (currentUser.birth_date ?? null) ||
     description.trim() !== (currentUser.description ?? "");
 
@@ -92,6 +95,7 @@ function BasicInfoPanel({
         full_name: trimmedName,
         email: email.trim(),
         personal_number: personalNumber.trim() || null,
+        id_number: idNumber.trim() || null,
         birth_date: birthDate || null,
         description: description.trim() || null,
       });
@@ -142,6 +146,15 @@ function BasicInfoPanel({
             value={personalNumber}
             placeholder="e.g. +52 555 123 4567"
             onChange={(event) => setPersonalNumber(event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>National ID number</span>
+          <input
+            type="text"
+            value={idNumber}
+            placeholder="e.g. CURP / DNI / passport"
+            onChange={(event) => setIdNumber(event.target.value)}
           />
         </label>
         <label className="field">

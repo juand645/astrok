@@ -3,6 +3,7 @@ import { Send, Sparkles, Trash2, X } from "lucide-react";
 import {
   ChatMessage,
   ClientDetail,
+  PlanContent,
   PlanDraft,
   PlanSummary,
   createPlan,
@@ -67,11 +68,15 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
     setIsApplying(true);
     setError(null);
     try {
+      const wrapped: PlanContent = {};
+      for (const [day, exercises] of Object.entries(draftPlan.content)) {
+        wrapped[day] = [{ series: 3, exercises }];
+      }
       const created = await createPlan(accessToken, {
         client_id: client.id,
         title: draftPlan.title,
         description: draftPlan.description ?? null,
-        content: draftPlan.content,
+        content: wrapped,
         status: "draft",
       });
       onPlanCreated(created);

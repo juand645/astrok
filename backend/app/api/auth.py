@@ -127,6 +127,8 @@ def update_my_profile(
             current_user.full_name = trimmed
     if payload.personal_number is not None:
         current_user.personal_number = payload.personal_number.strip() or None
+    if payload.id_number is not None:
+        current_user.id_number = payload.id_number.strip() or None
     if payload.birth_date is not None:
         current_user.birth_date = payload.birth_date
     if payload.description is not None:
@@ -198,6 +200,7 @@ def serialize_user(user: User, db: Session | None = None) -> UserRead:
         email=user.email,
         username=user.username,
         personal_number=user.personal_number,
+        id_number=user.id_number,
         birth_date=user.birth_date,
         description=user.description,
         active=user.active,

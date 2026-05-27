@@ -85,6 +85,7 @@ def create_client(
         username=payload.username.strip(),
         password_hash=hash_password(payload.password),
         personal_number=(payload.personal_number.strip() or None) if payload.personal_number else None,
+        id_number=(payload.id_number.strip() or None) if payload.id_number else None,
         description=(payload.description.strip() or None) if payload.description else None,
         birth_date=payload.birth_date,
     )
@@ -139,6 +140,7 @@ def create_client(
         email=user.email,
         username=user.username,
         personal_number=user.personal_number,
+        id_number=user.id_number,
         description=user.description,
         birth_date=user.birth_date,
         measures=user.measures or {},
@@ -192,6 +194,7 @@ def list_my_clients(
             email=user.email,
             username=user.username,
             personal_number=user.personal_number,
+            id_number=user.id_number,
             description=user.description,
             birth_date=user.birth_date,
             relation_type=relation_type,
@@ -237,6 +240,7 @@ def get_client_detail(
         email=user.email,
         username=user.username,
         personal_number=user.personal_number,
+        id_number=user.id_number,
         description=user.description,
         birth_date=user.birth_date,
         measures=user.measures or {},
@@ -252,17 +256,22 @@ def update_client(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> ClientDetail:
-    """Patch limited fields on a client (description and personal_number).
+    """Patch limited fields on a client + their relation note.
 
     Path:
         client_id: Target client.
 
-    Body (``ClientUpdate``):
-        description: New free-text notes. An empty/whitespace string clears it.
-        personal_number: New contact number. An empty/whitespace string clears it.
+    Body (``ClientUpdate``) — any subset:
+        description: Client free-text notes. Empty string clears it.
+        personal_number: Contact number. Empty string clears it.
+        id_number: National ID number. Empty string clears it.
+        relation_description: The "Focus" note on the trainer-client relation
+            row (lives in ``user_relations``, not on the user itself). Empty
+            string clears it. Updatable by the assigned professional or an
+            admin; clients calling on themselves cannot edit this — they
+            get 403.
 
-    Either or both may be provided. Returns the refreshed ``ClientDetail``.
-    403 if caller lacks access.
+    Returns the refreshed ``ClientDetail``. 403 if caller lacks access.
     """
     assert_can_access_client(db, current_user, client_id)
 
@@ -270,6 +279,7 @@ def update_client(
     if user is None or not user.active:
         raise HTTPException(status_code=404, detail="Client not found.")
 
+    now = datetime.now(UTC)
     changed = False
     if payload.description is not None:
         user.description = payload.description.strip() or None
@@ -277,8 +287,35 @@ def update_client(
     if payload.personal_number is not None:
         user.personal_number = payload.personal_number.strip() or None
         changed = True
+    if payload.id_number is not None:
+        user.id_number = payload.id_number.strip() or None
+        changed = True
     if changed:
-        user.updated_at = datetime.now(UTC)
+        user.updated_at = now
+
+    if payload.relation_description is not None:
+        if actor_is_admin(current_user):
+            relation_to_update = db.scalar(
+                select(UserRelation).where(
+                    UserRelation.client_id == client_id,
+                    UserRelation.active.is_(True),
+                )
+            )
+        else:
+            relation_to_update = db.scalar(
+                select(UserRelation).where(
+                    UserRelation.client_id == client_id,
+                    UserRelation.professional_id == current_user.id,
+                    UserRelation.active.is_(True),
+                )
+            )
+        if relation_to_update is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the assigned trainer or an admin can edit the focus note.",
+            )
+        relation_to_update.description = payload.relation_description.strip() or None
+        relation_to_update.updated_at = now
 
     db.commit()
     db.refresh(user)
@@ -297,6 +334,7 @@ def update_client(
         email=user.email,
         username=user.username,
         personal_number=user.personal_number,
+        id_number=user.id_number,
         description=user.description,
         birth_date=user.birth_date,
         measures=user.measures or {},
@@ -406,6 +444,7 @@ def transfer_client(
         email=client.email,
         username=client.username,
         personal_number=client.personal_number,
+        id_number=client.id_number,
         description=client.description,
         birth_date=client.birth_date,
         measures=client.measures or {},

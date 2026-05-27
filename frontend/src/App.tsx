@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Bot,
   Calendar,
   CalendarDays,
   ClipboardCheck,
@@ -30,8 +29,7 @@ type ActiveView =
   | "sessions"
   | "appointments"
   | "health"
-  | "profile"
-  | "assistant";
+  | "profile";
 
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
@@ -183,13 +181,6 @@ export function App() {
             </button>
           ) : null}
           <button
-            className={`nav-item ${resolvedView === "assistant" ? "active" : ""}`}
-            onClick={() => navigateTo("assistant")}
-          >
-            <Bot size={18} />
-            AI Assistant
-          </button>
-          <button
             className={`nav-item ${resolvedView === "profile" ? "active" : ""}`}
             onClick={() => navigateTo("profile")}
           >
@@ -241,18 +232,6 @@ export function App() {
             currentUser={currentUser}
             onProfileUpdated={setCurrentUser}
           />
-        ) : resolvedView === "assistant" ? (
-          <section className="module-stack" aria-label="AI assistant">
-            <header className="module-header">
-              <div>
-                <h1>AI assistant</h1>
-                <p>
-                  Open a client to use the Plan Coach. Per-session AI feedback runs automatically
-                  when clients save a workout.
-                </p>
-              </div>
-            </header>
-          </section>
         ) : isClient ? (
           <ClientDashboardModule
             accessToken={accessToken}

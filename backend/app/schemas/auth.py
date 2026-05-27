@@ -22,6 +22,7 @@ class ProfileUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=1)
     email: EmailStr | None = None
     personal_number: str | None = None
+    id_number: str | None = None
     birth_date: date | None = None
     description: str | None = None
 

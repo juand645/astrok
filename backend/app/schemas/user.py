@@ -11,6 +11,7 @@ class UserCreate(BaseModel):
     username: str
     password: str = Field(min_length=8)
     personal_number: str | None = None
+    id_number: str | None = None
     role_names: list[RoleName] = Field(default_factory=lambda: [RoleName.client])
 
 
@@ -20,6 +21,7 @@ class UserRead(BaseModel):
     email: EmailStr
     username: str
     personal_number: str | None = None
+    id_number: str | None = None
     birth_date: date | None = None
     description: str | None = None
     active: bool

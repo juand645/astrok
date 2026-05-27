@@ -16,6 +16,7 @@ import {
   fetchClientParQList,
   fetchClientPlans,
   fetchSessions,
+  flattenDayContent,
 } from "../../api";
 
 type Props = {
@@ -225,7 +226,7 @@ function NextWorkoutCard({
     );
   }
 
-  const exercises = activePlan.content[nextDayKey] ?? [];
+  const exercises = flattenDayContent(activePlan.content[nextDayKey]);
   const preview = exercises
     .slice(0, 3)
     .map((e) => e.ejercicio)
