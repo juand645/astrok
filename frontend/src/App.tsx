@@ -7,6 +7,7 @@ import {
   HeartPulse,
   LogOut,
   Menu,
+  ShieldCheck,
   UserCircle,
   Users,
   X,
@@ -22,10 +23,14 @@ import { AppointmentsModule } from "./modules/appointments/AppointmentsModule";
 import { ParQModule } from "./modules/health/ParQModule";
 import { ProfileModule } from "./modules/profile/ProfileModule";
 import { PlanSessionsModule } from "./modules/sessions/PlanSessionsModule";
+import { TrainerDetailModule } from "./modules/trainers/TrainerDetailModule";
+import { TrainersModule } from "./modules/trainers/TrainersModule";
+import { NewTrainerModule } from "./modules/trainers/NewTrainerModule";
 
 type ActiveView =
   | "dashboard"
   | "clients"
+  | "trainers"
   | "sessions"
   | "appointments"
   | "health"
@@ -38,6 +43,9 @@ export function App() {
   const [isSessionLoading, setIsSessionLoading] = useState(Boolean(accessToken));
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [selectedTrainerId, setSelectedTrainerId] = useState<number | null>(null);
+  const [isCreatingTrainer, setIsCreatingTrainer] = useState(false);
+  const [trainersReloadKey, setTrainersReloadKey] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -69,6 +77,8 @@ export function App() {
     setActiveView("dashboard");
     setSelectedClientId(null);
     setIsCreatingClient(false);
+    setSelectedTrainerId(null);
+    setIsCreatingTrainer(false);
   }
 
   useEffect(() => {
@@ -84,6 +94,8 @@ export function App() {
     setActiveView(view);
     setSelectedClientId(null);
     setIsCreatingClient(false);
+    setSelectedTrainerId(null);
+    setIsCreatingTrainer(false);
     setIsMobileMenuOpen(false);
   }
 
@@ -110,8 +122,11 @@ export function App() {
   }
 
   const isClient = currentUser.roles.includes("client");
+  const isAdmin = currentUser.roles.includes("admin");
   const resolvedView: ActiveView =
     activeView === "clients" && isClient
+      ? "dashboard"
+      : activeView === "trainers" && !isAdmin
       ? "dashboard"
       : activeView === "health" && !isClient
       ? "dashboard"
@@ -155,6 +170,15 @@ export function App() {
             >
               <Users size={18} />
               Clients
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className={`nav-item ${resolvedView === "trainers" ? "active" : ""}`}
+              onClick={() => navigateTo("trainers")}
+            >
+              <ShieldCheck size={18} />
+              Trainers
             </button>
           )}
           <button
@@ -219,6 +243,32 @@ export function App() {
             canCreate={!isClient}
             onSelectClient={setSelectedClientId}
             onCreateClient={() => setIsCreatingClient(true)}
+          />
+        ) : resolvedView === "trainers" && isCreatingTrainer ? (
+          <NewTrainerModule
+            accessToken={accessToken}
+            onCancel={() => setIsCreatingTrainer(false)}
+            onCreated={() => {
+              setIsCreatingTrainer(false);
+              setTrainersReloadKey((value) => value + 1);
+            }}
+          />
+        ) : resolvedView === "trainers" && selectedTrainerId !== null ? (
+          <TrainerDetailModule
+            accessToken={accessToken}
+            trainerId={selectedTrainerId}
+            onBack={() => setSelectedTrainerId(null)}
+            onDeleted={() => {
+              setSelectedTrainerId(null);
+              setTrainersReloadKey((value) => value + 1);
+            }}
+          />
+        ) : resolvedView === "trainers" ? (
+          <TrainersModule
+            key={trainersReloadKey}
+            accessToken={accessToken}
+            onSelectTrainer={setSelectedTrainerId}
+            onCreateTrainer={() => setIsCreatingTrainer(true)}
           />
         ) : resolvedView === "sessions" ? (
           <PlanSessionsModule accessToken={accessToken} currentUser={currentUser} />

@@ -190,7 +190,75 @@ export type ExerciseEntry = {
   repeticiones: number;
   peso: string;
   url_video: string;
+  image_url?: string;
 };
+
+export function exerciseThumbnailUrl(exercise: {
+  url_video?: string;
+  image_url?: string;
+}): string | null {
+  const explicit = (exercise.image_url ?? "").trim();
+  if (explicit) {
+    const youtubeFromImage = parseYouTubeId(explicit);
+    if (youtubeFromImage) {
+      return `https://img.youtube.com/vi/${youtubeFromImage}/hqdefault.jpg`;
+    }
+    return explicit;
+  }
+  const videoId = parseYouTubeId(exercise.url_video ?? "");
+  if (videoId) return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  return null;
+}
+
+export function exerciseVideoHref(exercise: {
+  url_video?: string;
+  image_url?: string;
+}): string | null {
+  const video = (exercise.url_video ?? "").trim();
+  if (video) return video;
+  const image = (exercise.image_url ?? "").trim();
+  if (image && parseYouTubeId(image)) return image;
+  return null;
+}
+
+export function exerciseYoutubeId(exercise: {
+  url_video?: string;
+  image_url?: string;
+}): string | null {
+  const fromVideo = parseYouTubeId(exercise.url_video ?? "");
+  if (fromVideo) return fromVideo;
+  return parseYouTubeId(exercise.image_url ?? "");
+}
+
+export function exerciseFullImageUrl(exercise: {
+  url_video?: string;
+  image_url?: string;
+}): string | null {
+  const image = (exercise.image_url ?? "").trim();
+  if (image && !parseYouTubeId(image)) return image;
+  return null;
+}
+
+function parseYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "youtu.be") {
+      return parsed.pathname.slice(1).split("/")[0] || null;
+    }
+    if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
+      const v = parsed.searchParams.get("v");
+      if (v) return v;
+      const match = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/);
+      if (match) return match[1];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export type Circuito = {
   series: number;
@@ -863,4 +931,133 @@ export async function transferClient(
     throw new Error(detail?.detail ?? "Could not transfer client.");
   }
   return response.json();
+}
+
+export type Trainer = {
+  id: number;
+  full_name: string;
+  email: string;
+  username: string;
+  personal_number: string | null;
+  id_number: string | null;
+  birth_date: string | null;
+  description: string | null;
+  active: boolean;
+  active_client_count: number;
+};
+
+export type TrainerClientSummary = {
+  id: number;
+  full_name: string;
+  username: string;
+  email: string;
+};
+
+export type TrainerDetail = Trainer & {
+  clients: TrainerClientSummary[];
+};
+
+export type TrainerCreatePayload = {
+  full_name: string;
+  email: string;
+  username: string;
+  password: string;
+  personal_number?: string | null;
+  id_number?: string | null;
+  birth_date?: string | null;
+  description?: string | null;
+};
+
+export type TrainerUpdatePayload = {
+  full_name?: string;
+  email?: string;
+  personal_number?: string | null;
+  id_number?: string | null;
+  birth_date?: string | null;
+  description?: string | null;
+  active?: boolean;
+};
+
+export async function fetchTrainers(
+  accessToken: string,
+  opts?: { includeInactive?: boolean },
+): Promise<Trainer[]> {
+  const query = opts?.includeInactive ? "?include_inactive=true" : "";
+  const response = await fetch(`${API_URL}/api/trainers/${query}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load trainers.");
+  }
+  return response.json();
+}
+
+export async function fetchTrainerDetail(
+  accessToken: string,
+  trainerId: number,
+): Promise<TrainerDetail> {
+  const response = await fetch(`${API_URL}/api/trainers/${trainerId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load trainer.");
+  }
+  return response.json();
+}
+
+export async function createTrainer(
+  accessToken: string,
+  payload: TrainerCreatePayload,
+): Promise<Trainer> {
+  const response = await fetch(`${API_URL}/api/trainers/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not create trainer.");
+  }
+  return response.json();
+}
+
+export async function updateTrainer(
+  accessToken: string,
+  trainerId: number,
+  payload: TrainerUpdatePayload,
+): Promise<Trainer> {
+  const response = await fetch(`${API_URL}/api/trainers/${trainerId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not update trainer.");
+  }
+  return response.json();
+}
+
+export async function deleteTrainer(accessToken: string, trainerId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/api/trainers/${trainerId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not delete trainer.");
+  }
 }

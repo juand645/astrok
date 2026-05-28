@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, Circle, Save, Search, Sparkles, Star } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Save, Search, Sparkles, Star, X } from "lucide-react";
 import {
   AuthUser,
   Circuito,
@@ -8,6 +8,9 @@ import {
   PerformanceEntry,
   PlanSummary,
   WorkoutSession,
+  exerciseFullImageUrl,
+  exerciseThumbnailUrl,
+  exerciseYoutubeId,
   fetchClientPlans,
   fetchCoachMessage,
   fetchMyClients,
@@ -253,6 +256,7 @@ function DayLogPanel({
     thisWeekSession?.ai_response ?? null,
   );
   const [isLoadingCoach, setIsLoadingCoach] = useState(false);
+  const [previewExercise, setPreviewExercise] = useState<ExerciseEntry | null>(null);
 
   useEffect(() => {
     setRows(buildInitialRows(prescribed, fillSource));
@@ -373,6 +377,13 @@ function DayLogPanel({
         />
       ) : null}
 
+      {previewExercise ? (
+        <ExercisePreviewModal
+          exercise={previewExercise}
+          onClose={() => setPreviewExercise(null)}
+        />
+      ) : null}
+
       <button
         type="button"
         className={`completion-toggle ${completed ? "is-completed" : ""}`}
@@ -425,10 +436,36 @@ function DayLogPanel({
                           row.ejercicio,
                           index,
                         );
+                        const thumb = prescribedRow
+                          ? exerciseThumbnailUrl(prescribedRow)
+                          : null;
                         return (
                           <tr key={`${row.ejercicio}-${index}`}>
                             <td data-label="Ejercicio">
-                              <strong>{row.ejercicio}</strong>
+                              <div className="exercise-cell">
+                                {thumb && prescribedRow ? (
+                                  <button
+                                    type="button"
+                                    className="exercise-thumb-link"
+                                    onClick={() => setPreviewExercise(prescribedRow)}
+                                    title="Preview"
+                                    aria-label={`Preview ${row.ejercicio}`}
+                                  >
+                                    <img
+                                      className="exercise-thumb"
+                                      src={thumb}
+                                      alt={row.ejercicio}
+                                      loading="lazy"
+                                    />
+                                  </button>
+                                ) : (
+                                  <div
+                                    className="exercise-thumb exercise-thumb-placeholder"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                <strong>{row.ejercicio}</strong>
+                              </div>
                             </td>
                             <td data-label="Prescribed">
                               <span className="muted">{summarize(prescribedRow)}</span>
@@ -560,6 +597,69 @@ function RatingModal({
           >
             <Save size={16} /> Save session
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExercisePreviewModal({
+  exercise,
+  onClose,
+}: {
+  exercise: ExerciseEntry;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const youtubeId = exerciseYoutubeId(exercise);
+  const fallbackImage = exerciseFullImageUrl(exercise);
+  const thumbFallback = exerciseThumbnailUrl(exercise);
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="exercise-preview-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="exercise-preview-header">
+          <h2>{exercise.ejercicio || "Exercise"}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close preview"
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="exercise-preview-body">
+          {youtubeId ? (
+            <iframe
+              className="exercise-preview-video"
+              src={`https://www.youtube.com/embed/${youtubeId}`}
+              title={exercise.ejercicio || "Exercise video"}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : fallbackImage ? (
+            <img
+              className="exercise-preview-image"
+              src={fallbackImage}
+              alt={exercise.ejercicio}
+            />
+          ) : thumbFallback ? (
+            <img
+              className="exercise-preview-image"
+              src={thumbFallback}
+              alt={exercise.ejercicio}
+            />
+          ) : (
+            <p className="muted">No preview available.</p>
+          )}
         </div>
       </div>
     </div>

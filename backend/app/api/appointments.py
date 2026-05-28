@@ -26,7 +26,6 @@ router = APIRouter()
 
 SCHEDULE_OPEN_HOUR = 5
 SCHEDULE_LAST_START_HOUR = 18  # last bookable start hour; slot ends at 19:00
-MAX_DAYS_AHEAD = 28
 
 
 @router.get("/me", response_model=list[AppointmentRead])
@@ -122,7 +121,7 @@ def create_appointment(
 
     Body (``AppointmentCreate``):
         starts_at: ISO datetime with timezone. Must be on the hour, hour
-            5..18, in the future, and within ``MAX_DAYS_AHEAD`` (28 days).
+            5..18, and in the future.
         client_id: Required when a non-client is booking. Ignored when a
             client is the caller (auto-set to ``current_user.id``).
         professional_id: Optional. For non-clients, defaults to caller.
@@ -162,11 +161,6 @@ def create_appointment(
     now_utc = datetime.now(UTC)
     if starts_at <= now_utc:
         raise HTTPException(status_code=400, detail="Cannot book in the past.")
-    if starts_at > now_utc + timedelta(days=MAX_DAYS_AHEAD):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot book more than {MAX_DAYS_AHEAD} days ahead.",
-        )
 
     can_book_for_others = actor_can_create_clients(current_user)
 

@@ -513,6 +513,7 @@ function AddPlanForm({
                           <th>Repeticiones</th>
                           <th>Peso</th>
                           <th>URL video</th>
+                          <th>Image URL</th>
                           <th aria-label="Actions" />
                         </tr>
                       </thead>
@@ -583,6 +584,22 @@ function AddPlanForm({
                                 }
                               />
                             </td>
+                            <td data-label="Image URL">
+                              <input
+                                type="text"
+                                value={exercise.image_url ?? ""}
+                                placeholder="optional — auto from YouTube otherwise"
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "image_url",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
                             <td className="row-actions">
                               <button
                                 className="icon-button"
@@ -599,7 +616,7 @@ function AddPlanForm({
                         ))}
                         {circuito.exercises.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="muted center">
+                            <td colSpan={6} className="muted center">
                               No exercises in this circuit yet.
                             </td>
                           </tr>
@@ -1272,6 +1289,7 @@ function PlanPanel({
                           <th>Repeticiones</th>
                           <th>Peso</th>
                           <th>URL video</th>
+                          <th>Image URL</th>
                           <th aria-label="Actions" />
                         </tr>
                       </thead>
@@ -1342,6 +1360,22 @@ function PlanPanel({
                                 }
                               />
                             </td>
+                            <td data-label="Image URL">
+                              <input
+                                type="text"
+                                value={exercise.image_url ?? ""}
+                                placeholder="optional — auto from YouTube otherwise"
+                                onChange={(event) =>
+                                  updateExercise(
+                                    activeDay,
+                                    circuitoIndex,
+                                    exerciseIndex,
+                                    "image_url",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </td>
                             <td className="row-actions">
                               <button
                                 className="icon-button"
@@ -1358,7 +1392,7 @@ function PlanPanel({
                         ))}
                         {circuito.exercises.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="muted center">
+                            <td colSpan={6} className="muted center">
                               No exercises in this circuit yet.
                             </td>
                           </tr>
@@ -1480,6 +1514,7 @@ function normalizeContent(content: unknown): PlanContent {
             repeticiones: Number(exercise.repeticiones) || 0,
             peso: exercise.peso ?? "",
             url_video: exercise.url_video ?? "",
+            image_url: exercise.image_url ?? "",
           }),
         ),
       }));
@@ -1513,6 +1548,7 @@ function cleanContent(content: PlanContent): PlanContent {
         repeticiones: exercise.repeticiones,
         peso: exercise.peso,
         url_video: exercise.url_video,
+        image_url: (exercise.image_url ?? "").trim() || undefined,
       })),
     }));
   }

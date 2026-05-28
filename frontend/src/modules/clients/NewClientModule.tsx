@@ -29,7 +29,7 @@ type DraftPlan = {
 };
 
 function defaultExercise(): ExerciseEntry {
-  return { ejercicio: "", repeticiones: 10, peso: "", url_video: "" };
+  return { ejercicio: "", repeticiones: 10, peso: "", url_video: "", image_url: "" };
 }
 
 function defaultCircuito(): Circuito {
@@ -651,6 +651,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                         <th>Repeticiones</th>
                                         <th>Peso</th>
                                         <th>URL video</th>
+                                        <th>Image URL</th>
                                         <th aria-label="Actions" />
                                       </tr>
                                     </thead>
@@ -725,6 +726,23 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                               }
                                             />
                                           </td>
+                                          <td data-label="Image URL">
+                                            <input
+                                              type="text"
+                                              value={exercise.image_url ?? ""}
+                                              placeholder="optional — auto from YouTube otherwise"
+                                              onChange={(event) =>
+                                                updatePlanExercise(
+                                                  planIndex,
+                                                  activeDay,
+                                                  circuitoIndex,
+                                                  exerciseIndex,
+                                                  "image_url",
+                                                  event.target.value,
+                                                )
+                                              }
+                                            />
+                                          </td>
                                           <td className="row-actions">
                                             <button
                                               className="icon-button"
@@ -746,7 +764,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                       ))}
                                       {circuito.exercises.length === 0 ? (
                                         <tr>
-                                          <td colSpan={5} className="muted center">
+                                          <td colSpan={6} className="muted center">
                                             No exercises in this circuit yet.
                                           </td>
                                         </tr>
@@ -835,6 +853,7 @@ function cleanContent(content: PlanContent): PlanContent {
         repeticiones: exercise.repeticiones,
         peso: exercise.peso,
         url_video: exercise.url_video,
+        image_url: (exercise.image_url ?? "").trim() || undefined,
       })),
     }));
   }

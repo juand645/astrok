@@ -20,7 +20,6 @@ type Props = {
 
 const OPEN_HOUR = 5;
 const CLOSE_HOUR = 19;
-const MAX_WEEKS_AHEAD = 4;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 type SlotState = "available" | "mine" | "busy" | "past";
@@ -309,9 +308,7 @@ function WeekNavigator({
   onChange: (next: Date) => void;
 }) {
   const currentWeek = startOfIsoWeek(new Date());
-  const maxWeek = addDays(currentWeek, 7 * MAX_WEEKS_AHEAD);
   const canGoBack = weekStart > currentWeek;
-  const canGoForward = weekStart < maxWeek;
 
   const end = addDays(weekStart, 6);
   const label = `${formatShortDate(weekStart)} – ${formatShortDate(end)}`;
@@ -331,8 +328,7 @@ function WeekNavigator({
       <button
         type="button"
         className="icon-button"
-        onClick={() => canGoForward && onChange(addDays(weekStart, 7))}
-        disabled={!canGoForward}
+        onClick={() => onChange(addDays(weekStart, 7))}
         aria-label="Next week"
       >
         <ChevronRight size={18} />
@@ -774,7 +770,7 @@ function startOfDay(date: Date): Date {
 function formatHour(hour: number): string {
   const suffix = hour >= 12 ? "PM" : "AM";
   const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h12}:00 ${suffix}`;
+  return `${String(h12).padStart(2, "0")}:00 ${suffix}`;
 }
 
 function formatShortDate(date: Date): string {

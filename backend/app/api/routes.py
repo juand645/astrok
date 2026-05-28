@@ -10,6 +10,7 @@ from app.api import (
     par_q,
     plans,
     sessions,
+    trainers,
     users,
 )
 
@@ -24,3 +25,4 @@ api_router.include_router(par_q.router, tags=["par-q"])
 api_router.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
 api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+api_router.include_router(trainers.router, prefix="/trainers", tags=["trainers"])
