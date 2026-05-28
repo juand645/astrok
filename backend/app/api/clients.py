@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, aliased
 
@@ -143,6 +144,7 @@ def create_client(
         id_number=user.id_number,
         description=user.description,
         birth_date=user.birth_date,
+        active=user.active,
         measures=user.measures or {},
         relation_type=relation.relation_type,
         relation_description=relation.description,
@@ -153,15 +155,21 @@ def create_client(
 def list_my_clients(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
+    include_inactive: Annotated[bool, Query()] = False,
 ) -> list[ClientRead]:
-    """List the active clients assigned to the caller via ``user_relations``.
+    """List clients assigned to the caller via ``user_relations``.
 
-    Returns every active user joined to the caller through an active
+    Returns every user joined to the caller through an active
     ``user_relations`` row (the caller as ``professional_id``). For a pure
     client this is naturally empty; for a trainer it's their roster.
-    Admins see every active client and the assigned professional, so a
-    future "secretary" / front-desk role can hand-off the right trainer
-    name on each card.
+    Admins see every client and the assigned professional, so a future
+    "secretary" / front-desk role can hand-off the right trainer name on
+    each card.
+
+    Query:
+        include_inactive: When true, soft-deleted clients are included
+            so the admin/trainer can reactivate them. Defaults to false
+            (active-only).
 
     Ordered alphabetically by client full name.
     """
@@ -176,11 +184,10 @@ def list_my_clients(
         )
         .join(UserRelation, UserRelation.client_id == User.id)
         .join(professional, professional.id == UserRelation.professional_id)
-        .where(
-            UserRelation.active.is_(True),
-            User.active.is_(True),
-        )
+        .where(UserRelation.active.is_(True))
     )
+    if not include_inactive:
+        base = base.where(User.active.is_(True))
 
     if not actor_is_admin(current_user):
         base = base.where(UserRelation.professional_id == current_user.id)
@@ -197,6 +204,7 @@ def list_my_clients(
             id_number=user.id_number,
             description=user.description,
             birth_date=user.birth_date,
+            active=user.active,
             relation_type=relation_type,
             relation_description=relation_description,
             professional_id=professional_id,
@@ -217,13 +225,15 @@ def get_client_detail(
     Path:
         client_id: User id of the client to load.
 
-    Access is gated by ``assert_can_access_client``. Returns 404 if the
-    client doesn't exist or is inactive.
+    Access is gated by ``assert_can_access_client``. Inactive (soft-deleted)
+    clients are still returned so the assigned trainer or an admin can
+    reactivate them; the caller decides what to render via the ``active``
+    flag in the response. Returns 404 only if the row doesn't exist.
     """
     assert_can_access_client(db, current_user, client_id)
 
     user = db.get(User, client_id)
-    if user is None or not user.active:
+    if user is None:
         raise HTTPException(status_code=404, detail="Client not found.")
 
     relation = db.scalar(
@@ -243,6 +253,7 @@ def get_client_detail(
         id_number=user.id_number,
         description=user.description,
         birth_date=user.birth_date,
+        active=user.active,
         measures=user.measures or {},
         relation_type=relation.relation_type if relation else None,
         relation_description=relation.description if relation else None,
@@ -270,13 +281,17 @@ def update_client(
             string clears it. Updatable by the assigned professional or an
             admin; clients calling on themselves cannot edit this — they
             get 403.
+        active: Reactivate (true) or soft-delete (false) the client. Only
+            the assigned trainer or an admin may toggle this; clients
+            calling on themselves cannot deactivate themselves.
 
     Returns the refreshed ``ClientDetail``. 403 if caller lacks access.
+    Inactive clients can still be patched (so reactivate works).
     """
     assert_can_access_client(db, current_user, client_id)
 
     user = db.get(User, client_id)
-    if user is None or not user.active:
+    if user is None:
         raise HTTPException(status_code=404, detail="Client not found.")
 
     now = datetime.now(UTC)
@@ -289,6 +304,14 @@ def update_client(
         changed = True
     if payload.id_number is not None:
         user.id_number = payload.id_number.strip() or None
+        changed = True
+    if payload.active is not None:
+        if current_user.id == client_id and not actor_is_admin(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Clients cannot change their own active flag.",
+            )
+        user.active = payload.active
         changed = True
     if changed:
         user.updated_at = now
@@ -337,6 +360,7 @@ def update_client(
         id_number=user.id_number,
         description=user.description,
         birth_date=user.birth_date,
+        active=user.active,
         measures=user.measures or {},
         relation_type=relation.relation_type if relation else None,
         relation_description=relation.description if relation else None,
@@ -447,6 +471,7 @@ def transfer_client(
         id_number=client.id_number,
         description=client.description,
         birth_date=client.birth_date,
+        active=client.active,
         measures=client.measures or {},
         relation_type=new_relation.relation_type,
         relation_description=new_relation.description,
@@ -544,3 +569,37 @@ def list_client_plans(
         stmt = stmt.where(Plan.status != "draft")
 
     return list(db.scalars(stmt.order_by(Plan.created_at.desc())))
+
+
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_client(
+    client_id: int,
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Soft-delete a client by flipping ``users.active`` to false.
+
+    Authorization: the client's assigned professional (via an active
+    ``user_relations`` row) or an admin. Clients cannot delete themselves;
+    they get 403.
+
+    Plans, workout sessions, appointments, and relations are preserved so
+    history stays intact. To restore the client, PATCH ``{"active": true}``.
+    """
+    if current_user.id == client_id and not actor_is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Clients cannot delete themselves.",
+        )
+
+    assert_can_access_client(db, current_user, client_id)
+
+    user = db.get(User, client_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Client not found.")
+    if not user.active:
+        return
+
+    user.active = False
+    user.updated_at = datetime.now(UTC)
+    db.commit()

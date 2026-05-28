@@ -34,6 +34,7 @@ class ClientRead(BaseModel):
     id_number: str | None = None
     description: str | None = None
     birth_date: date | None = None
+    active: bool = True
     relation_type: str
     relation_description: str | None = None
     professional_id: int | None = None
@@ -45,6 +46,7 @@ class ClientUpdate(BaseModel):
     id_number: str | None = None
     description: str | None = None
     relation_description: str | None = None
+    active: bool | None = None
 
 
 class ClientTransfer(BaseModel):
@@ -61,6 +63,7 @@ class ClientDetail(BaseModel):
     id_number: str | None = None
     description: str | None = None
     birth_date: date | None = None
+    active: bool = True
     measures: dict = Field(default_factory=dict)
     relation_type: str | None = None
     relation_description: str | None = None

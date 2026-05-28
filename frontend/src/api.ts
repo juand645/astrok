@@ -151,14 +151,19 @@ export type Client = {
   id_number: string | null;
   description: string | null;
   birth_date: string | null;
+  active: boolean;
   relation_type: string;
   relation_description: string | null;
   professional_id: number | null;
   professional_name: string | null;
 };
 
-export async function fetchMyClients(accessToken: string): Promise<Client[]> {
-  const response = await fetch(`${API_URL}/api/clients/`, {
+export async function fetchMyClients(
+  accessToken: string,
+  opts?: { includeInactive?: boolean },
+): Promise<Client[]> {
+  const query = opts?.includeInactive ? "?include_inactive=true" : "";
+  const response = await fetch(`${API_URL}/api/clients/${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
@@ -179,6 +184,7 @@ export type ClientDetail = {
   id_number: string | null;
   description: string | null;
   birth_date: string | null;
+  active: boolean;
   measures: Record<string, number | string>;
   relation_type: string | null;
   relation_description: string | null;
@@ -816,6 +822,69 @@ export async function cancelAppointment(
   return response.json();
 }
 
+export type TrainerUnavailability = {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+};
+
+export async function fetchMyUnavailability(
+  accessToken: string,
+  opts?: { startsAfter?: string; startsBefore?: string },
+): Promise<TrainerUnavailability[]> {
+  const params = new URLSearchParams();
+  if (opts?.startsAfter) params.set("starts_after", opts.startsAfter);
+  if (opts?.startsBefore) params.set("starts_before", opts.startsBefore);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_URL}/api/appointments/unavailable/me${query}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load OOO blocks.");
+  }
+  return response.json();
+}
+
+export async function createUnavailability(
+  accessToken: string,
+  startsAt: string[],
+): Promise<TrainerUnavailability[]> {
+  const response = await fetch(`${API_URL}/api/appointments/unavailable/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ starts_at: startsAt }),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not save OOO selection.");
+  }
+  return response.json();
+}
+
+export async function deleteUnavailability(
+  accessToken: string,
+  unavailabilityId: number,
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/api/appointments/unavailable/${unavailabilityId}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not remove OOO block.");
+  }
+}
+
 export async function updateClient(
   accessToken: string,
   clientId: number,
@@ -824,6 +893,7 @@ export async function updateClient(
     personal_number?: string | null;
     id_number?: string | null;
     relation_description?: string | null;
+    active?: boolean;
   },
 ): Promise<ClientDetail> {
   const response = await fetch(`${API_URL}/api/clients/${clientId}`, {
@@ -839,6 +909,18 @@ export async function updateClient(
     throw new Error("Could not save client.");
   }
   return response.json();
+}
+
+export async function deleteClient(accessToken: string, clientId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/api/clients/${clientId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not delete client.");
+  }
 }
 
 export type DashboardStats = {

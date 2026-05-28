@@ -7,6 +7,7 @@ import {
   Mail,
   Phone,
   Plus,
+  RefreshCw,
   Save,
   Sparkles,
   Trash2,
@@ -18,6 +19,7 @@ import {
   PlanContent,
   PlanSummary,
   createPlan,
+  deleteClient,
   deletePlan,
   fetchClientDetail,
   fetchClientPlans,
@@ -32,6 +34,7 @@ type ClientDetailModuleProps = {
   accessToken: string;
   clientId: number;
   onBack: () => void;
+  onDeleted?: () => void;
 };
 
 type MeasureRow = {
@@ -39,7 +42,12 @@ type MeasureRow = {
   value: string;
 };
 
-export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDetailModuleProps) {
+export function ClientDetailModule({
+  accessToken,
+  clientId,
+  onBack,
+  onDeleted,
+}: ClientDetailModuleProps) {
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -118,7 +126,7 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
         <div className="client-avatar large" aria-hidden="true">
           {getInitials(client.full_name)}
         </div>
-        <div>
+        <div className="detail-header-body">
           <h1>{client.full_name}</h1>
           <p className="muted">@{client.username}</p>
           <div className="detail-meta">
@@ -139,8 +147,21 @@ export function ClientDetailModule({ accessToken, clientId, onBack }: ClientDeta
               <span>Born {formatBirthDate(client.birth_date)}</span>
             ) : null}
             {client.relation_description ? <span>Focus: {client.relation_description}</span> : null}
+            <span
+              className={`status-pill ${
+                client.active ? "status-approved" : "status-inactive"
+              }`}
+            >
+              {client.active ? "Active" : "Inactive"}
+            </span>
           </div>
         </div>
+        <ClientHeaderActions
+          accessToken={accessToken}
+          client={client}
+          onDeleted={onDeleted ?? onBack}
+          onReactivated={handleClientUpdated}
+        />
       </header>
 
       <ClientNotesPanel
@@ -662,6 +683,78 @@ function AddPlanForm({
         </button>
       </div>
     </article>
+  );
+}
+
+function ClientHeaderActions({
+  accessToken,
+  client,
+  onDeleted,
+  onReactivated,
+}: {
+  accessToken: string;
+  client: ClientDetail;
+  onDeleted: () => void;
+  onReactivated: (next: ClientDetail) => void;
+}) {
+  const [isWorking, setIsWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        `Soft-delete ${client.full_name}? Their plans, sessions, and history stay intact and they can be reactivated later.`,
+      )
+    ) {
+      return;
+    }
+    setIsWorking(true);
+    setError(null);
+    try {
+      await deleteClient(accessToken, client.id);
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed.");
+      setIsWorking(false);
+    }
+  }
+
+  async function handleReactivate() {
+    setIsWorking(true);
+    setError(null);
+    try {
+      const updated = await updateClient(accessToken, client.id, { active: true });
+      onReactivated(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reactivate failed.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  return (
+    <div className="detail-header-actions">
+      {client.active ? (
+        <button
+          type="button"
+          className="secondary-button danger-button"
+          onClick={handleDelete}
+          disabled={isWorking}
+        >
+          <Trash2 size={16} /> {isWorking ? "Working…" : "Delete client"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="primary-button"
+          onClick={handleReactivate}
+          disabled={isWorking}
+        >
+          <RefreshCw size={16} /> {isWorking ? "Working…" : "Reactivate client"}
+        </button>
+      )}
+      {error ? <span className="error-text">{error}</span> : null}
+    </div>
   );
 }
 

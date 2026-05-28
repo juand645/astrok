@@ -236,6 +236,7 @@ export function App() {
             accessToken={accessToken}
             clientId={selectedClientId}
             onBack={() => setSelectedClientId(null)}
+            onDeleted={() => setSelectedClientId(null)}
           />
         ) : resolvedView === "clients" ? (
           <ClientsModule

@@ -34,6 +34,7 @@ export function ClientsModule({
 }: ClientsModuleProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
+  const [includeInactive, setIncludeInactive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState<Client | null>(null);
@@ -44,7 +45,7 @@ export function ClientsModule({
     setIsLoading(true);
     setError(null);
 
-    fetchMyClients(accessToken)
+    fetchMyClients(accessToken, { includeInactive })
       .then((result) => {
         if (!cancelled) {
           setClients(result);
@@ -64,7 +65,7 @@ export function ClientsModule({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, reloadKey]);
+  }, [accessToken, reloadKey, includeInactive]);
 
   const filtered = clients.filter((client) => {
     const term = search.trim().toLowerCase();
@@ -103,6 +104,14 @@ export function ClientsModule({
             onChange={(event) => setSearch(event.target.value)}
           />
         </label>
+        <label className="inline-toggle">
+          <input
+            type="checkbox"
+            checked={includeInactive}
+            onChange={(event) => setIncludeInactive(event.target.checked)}
+          />
+          Show inactive
+        </label>
       </section>
 
       {error ? <p className="error-text">{error}</p> : null}
@@ -114,7 +123,10 @@ export function ClientsModule({
       ) : (
         <section className="clients-grid">
           {filtered.map((client) => (
-            <article className="client-card" key={client.id}>
+            <article
+              className={`client-card ${client.active ? "" : "is-inactive"}`}
+              key={client.id}
+            >
               <div className="client-card-trainer" title="Assigned trainer">
                 <UserCircle size={14} />
                 <span>Trainer</span>
@@ -129,6 +141,9 @@ export function ClientsModule({
                   <strong>{client.full_name}</strong>
                   <span>@{client.username}</span>
                 </div>
+                {!client.active ? (
+                  <span className="status-pill status-inactive">Inactive</span>
+                ) : null}
               </div>
 
               <div className="client-detail-list">

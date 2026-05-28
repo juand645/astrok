@@ -1,16 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Save, Search, X } from "lucide-react";
+import {
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Search,
+  X,
+} from "lucide-react";
 import {
   Appointment,
   AppointmentCreatePayload,
   AuthUser,
   AvailabilitySlot,
   Client,
+  TrainerUnavailability,
   bookAppointment,
   cancelAppointment,
+  createUnavailability,
+  deleteUnavailability,
   fetchAvailability,
   fetchMyAppointments,
   fetchMyClients,
+  fetchMyUnavailability,
 } from "../../api";
 
 type Props = {
@@ -22,13 +33,16 @@ const OPEN_HOUR = 5;
 const CLOSE_HOUR = 19;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-type SlotState = "available" | "mine" | "busy" | "past";
+type SlotState = "available" | "mine" | "busy" | "past" | "ooo";
 
 type SlotInfo = {
   state: SlotState;
   appointment: Appointment | null;
   date: Date;
+  unavailabilityId?: number;
 };
+
+type DragAnchor = { d: number; h: number; mode: "add" | "remove" };
 
 export function AppointmentsModule({ accessToken, currentUser }: Props) {
   const isPureClient =
@@ -158,8 +172,10 @@ function ClientView({
       <WeekGrid
         weekStart={weekStart}
         slotMap={slotMap}
-        onSelectAvailable={(date) => setSelectedSlot(date)}
-        onSelectMine={(appointment) => setPendingCancel(appointment)}
+        onSlotClick={(info) => {
+          if (info.state === "available") setSelectedSlot(info.date);
+          else if (info.state === "mine" && info.appointment) setPendingCancel(info.appointment);
+        }}
       />
 
       {selectedSlot ? (
@@ -191,10 +207,20 @@ function TrainerView({
   const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [ooo, setOoo] = useState<TrainerUnavailability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
   const [pendingCancel, setPendingCancel] = useState<Appointment | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [dragStart, setDragStart] = useState<DragAnchor | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ d: number; h: number } | null>(null);
+  const [isSavingOoo, setIsSavingOoo] = useState(false);
+  const [pendingOooRemove, setPendingOooRemove] = useState<{
+    id: number;
+    date: Date;
+  } | null>(null);
 
   const weekEnd = useMemo(() => addDays(weekStart, 7), [weekStart]);
 
@@ -202,14 +228,19 @@ function TrainerView({
     setIsLoading(true);
     setError(null);
     try {
-      const [appts, clientList] = await Promise.all([
+      const [appts, oooList, clientList] = await Promise.all([
         fetchMyAppointments(accessToken, {
+          startsAfter: weekStart.toISOString(),
+          startsBefore: weekEnd.toISOString(),
+        }),
+        fetchMyUnavailability(accessToken, {
           startsAfter: weekStart.toISOString(),
           startsBefore: weekEnd.toISOString(),
         }),
         clients.length === 0 ? fetchMyClients(accessToken) : Promise.resolve(clients),
       ]);
       setAppointments(appts);
+      setOoo(oooList);
       if (clients.length === 0) setClients(clientList);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load appointments.");
@@ -224,9 +255,102 @@ function TrainerView({
   }, [weekStart, accessToken]);
 
   const slotMap = useMemo(
-    () => buildSlotMap(weekStart, [], appointments, currentUser.id, true),
-    [weekStart, appointments, currentUser.id],
+    () => buildSlotMap(weekStart, [], appointments, currentUser.id, true, ooo),
+    [weekStart, appointments, currentUser.id, ooo],
   );
+
+  function toggleSelectMode() {
+    setIsSelectMode((current) => {
+      const next = !current;
+      if (!next) setSelectedKeys(new Set());
+      return next;
+    });
+  }
+
+  const effectiveSelection = useMemo(() => {
+    if (!dragStart || !dragCurrent) return selectedKeys;
+    const next = new Set(selectedKeys);
+    const minD = Math.min(dragStart.d, dragCurrent.d);
+    const maxD = Math.max(dragStart.d, dragCurrent.d);
+    const minH = Math.min(dragStart.h, dragCurrent.h);
+    const maxH = Math.max(dragStart.h, dragCurrent.h);
+    for (let d = minD; d <= maxD; d++) {
+      for (let h = minH; h <= maxH; h++) {
+        const key = `${d}-${h}`;
+        const info = slotMap.get(key);
+        if (info?.state !== "available") continue;
+        if (dragStart.mode === "add") next.add(key);
+        else next.delete(key);
+      }
+    }
+    return next;
+  }, [selectedKeys, dragStart, dragCurrent, slotMap]);
+
+  function startDrag(d: number, h: number, key: string) {
+    const mode: "add" | "remove" = selectedKeys.has(key) ? "remove" : "add";
+    setDragStart({ d, h, mode });
+    setDragCurrent({ d, h });
+  }
+
+  function extendDrag(d: number, h: number) {
+    setDragCurrent((current) => {
+      if (current && current.d === d && current.h === h) return current;
+      return { d, h };
+    });
+  }
+
+  useEffect(() => {
+    if (!dragStart) return;
+    function commit() {
+      setSelectedKeys(effectiveSelection);
+      setDragStart(null);
+      setDragCurrent(null);
+    }
+    window.addEventListener("pointerup", commit);
+    window.addEventListener("pointercancel", commit);
+    return () => {
+      window.removeEventListener("pointerup", commit);
+      window.removeEventListener("pointercancel", commit);
+    };
+  }, [dragStart, effectiveSelection]);
+
+  async function saveOooSelection() {
+    if (selectedKeys.size === 0) return;
+    const startsAtList: string[] = [];
+    for (const key of selectedKeys) {
+      const info = slotMap.get(key);
+      if (info && info.state === "available") {
+        startsAtList.push(info.date.toISOString());
+      }
+    }
+    if (startsAtList.length === 0) return;
+    setIsSavingOoo(true);
+    setError(null);
+    try {
+      await createUnavailability(accessToken, startsAtList);
+      setSelectedKeys(new Set());
+      setIsSelectMode(false);
+      await loadWeek();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save OOO selection.");
+    } finally {
+      setIsSavingOoo(false);
+    }
+  }
+
+  function handleSlotClick(info: SlotInfo) {
+    if (isSelectMode) {
+      // Pointer events handle selection in select mode; ignore click to avoid double-toggle.
+      return;
+    }
+    if (info.state === "available") {
+      setSelectedSlot(info.date);
+    } else if (info.state === "mine" && info.appointment) {
+      setPendingCancel(info.appointment);
+    } else if (info.state === "ooo" && info.unavailabilityId != null) {
+      setPendingOooRemove({ id: info.unavailabilityId, date: info.date });
+    }
+  }
 
   async function confirmBooking(clientId: number, focus: string, notes: string) {
     if (!selectedSlot) return;
@@ -256,12 +380,60 @@ function TrainerView({
     }
   }
 
+  async function confirmRemoveOoo() {
+    if (!pendingOooRemove) return;
+    try {
+      await deleteUnavailability(accessToken, pendingOooRemove.id);
+      setPendingOooRemove(null);
+      await loadWeek();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove OOO.");
+    }
+  }
+
   return (
     <section className="module-stack" aria-label="Appointments">
       <header className="module-header">
         <div>
           <h1>Appointments</h1>
-          <p>Your week. Click an open slot to book a client; click a booked slot to manage it.</p>
+          <p>
+            {isSelectMode
+              ? "Select mode — tap any open slot to mark it OOO, then save."
+              : "Your week. Click an open slot to book a client; click a booked or OOO slot to manage it."}
+          </p>
+        </div>
+        <div className="appointments-actions">
+          {isSelectMode ? (
+            <>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={toggleSelectMode}
+                disabled={isSavingOoo}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={saveOooSelection}
+                disabled={isSavingOoo || selectedKeys.size === 0}
+              >
+                <Save size={16} />
+                {isSavingOoo
+                  ? "Saving…"
+                  : `Save OOO (${selectedKeys.size})`}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={toggleSelectMode}
+            >
+              <Ban size={16} /> Mark unavailable
+            </button>
+          )}
         </div>
       </header>
 
@@ -270,12 +442,18 @@ function TrainerView({
       {error ? <p className="error-text">{error}</p> : null}
       {isLoading ? <p className="muted">Loading…</p> : null}
 
-      <WeekGrid
-        weekStart={weekStart}
-        slotMap={slotMap}
-        onSelectAvailable={(date) => setSelectedSlot(date)}
-        onSelectMine={(appointment) => setPendingCancel(appointment)}
-      />
+      <div className="appointments-layout">
+        <WeekSidebar weekStart={weekStart} onJump={setWeekStart} />
+        <WeekGrid
+          weekStart={weekStart}
+          slotMap={slotMap}
+          isSelectMode={isSelectMode}
+          selectedKeys={effectiveSelection}
+          onSlotClick={handleSlotClick}
+          onSlotPointerDown={startDrag}
+          onSlotPointerEnter={extendDrag}
+        />
+      </div>
 
       {selectedSlot ? (
         <TrainerBookDialog
@@ -292,6 +470,14 @@ function TrainerView({
           clients={clients}
           onConfirm={confirmCancel}
           onClose={() => setPendingCancel(null)}
+        />
+      ) : null}
+
+      {pendingOooRemove ? (
+        <RemoveOooDialog
+          date={pendingOooRemove.date}
+          onConfirm={confirmRemoveOoo}
+          onClose={() => setPendingOooRemove(null)}
         />
       ) : null}
     </section>
@@ -312,27 +498,36 @@ function WeekNavigator({
 
   const end = addDays(weekStart, 6);
   const label = `${formatShortDate(weekStart)} – ${formatShortDate(end)}`;
+  const todayLabel = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
 
   return (
     <div className="week-nav">
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => canGoBack && onChange(addDays(weekStart, -7))}
-        disabled={!canGoBack}
-        aria-label="Previous week"
-      >
-        <ChevronLeft size={18} />
-      </button>
-      <strong className="week-nav-label">{label}</strong>
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => onChange(addDays(weekStart, 7))}
-        aria-label="Next week"
-      >
-        <ChevronRight size={18} />
-      </button>
+      <span className="week-nav-today">Today · {todayLabel}</span>
+      <div className="week-nav-controls">
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => canGoBack && onChange(addDays(weekStart, -7))}
+          disabled={!canGoBack}
+          aria-label="Previous week"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <strong className="week-nav-label">{label}</strong>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => onChange(addDays(weekStart, 7))}
+          aria-label="Next week"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+      <div aria-hidden="true" />
     </div>
   );
 }
@@ -340,13 +535,19 @@ function WeekNavigator({
 function WeekGrid({
   weekStart,
   slotMap,
-  onSelectAvailable,
-  onSelectMine,
+  isSelectMode = false,
+  selectedKeys,
+  onSlotClick,
+  onSlotPointerDown,
+  onSlotPointerEnter,
 }: {
   weekStart: Date;
   slotMap: Map<string, SlotInfo>;
-  onSelectAvailable: (date: Date) => void;
-  onSelectMine: (appointment: Appointment) => void;
+  isSelectMode?: boolean;
+  selectedKeys?: Set<string>;
+  onSlotClick: (info: SlotInfo, key: string) => void;
+  onSlotPointerDown?: (d: number, h: number, key: string) => void;
+  onSlotPointerEnter?: (d: number, h: number) => void;
 }) {
   const hours = useMemo(() => {
     const out: number[] = [];
@@ -357,11 +558,6 @@ function WeekGrid({
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
-
-  function handleClick(info: SlotInfo) {
-    if (info.state === "available") onSelectAvailable(info.date);
-    else if (info.state === "mine" && info.appointment) onSelectMine(info.appointment);
-  }
 
   return (
     <div className="week-grid-wrap">
@@ -392,19 +588,45 @@ function WeekGrid({
                   appointment: null,
                   date: dateAt(day, hour),
                 };
+                const isSelected = selectedKeys?.has(slotKey) ?? false;
+                const disabled = isSelectMode
+                  ? info.state !== "available"
+                  : info.state === "past" || info.state === "busy";
+                const dragEligible = isSelectMode && info.state === "available";
                 return (
-                  <td key={dayIndex} className={`slot slot-${info.state}`}>
+                  <td
+                    key={dayIndex}
+                    className={`slot slot-${info.state} ${isSelected ? "is-selected" : ""}`}
+                  >
                     <button
                       type="button"
                       className="slot-button"
-                      onClick={() => handleClick(info)}
-                      disabled={info.state === "past" || info.state === "busy"}
+                      onClick={() => onSlotClick(info, slotKey)}
+                      onPointerDown={
+                        dragEligible
+                          ? (event) => {
+                              event.preventDefault();
+                              onSlotPointerDown?.(dayIndex, hour, slotKey);
+                            }
+                          : undefined
+                      }
+                      onPointerEnter={
+                        dragEligible
+                          ? (event) => {
+                              if (event.buttons === 0) return;
+                              onSlotPointerEnter?.(dayIndex, hour);
+                            }
+                          : undefined
+                      }
+                      disabled={disabled}
                       aria-label={`${formatShortDate(day)} ${formatHour(hour)} — ${info.state}`}
                     >
                       {info.state === "mine" && info.appointment ? (
                         <span className="slot-label">Booked</span>
                       ) : info.state === "busy" ? (
                         <span className="slot-label">Booked</span>
+                      ) : info.state === "ooo" ? (
+                        <span className="slot-label">OOO</span>
                       ) : null}
                     </button>
                   </td>
@@ -675,6 +897,178 @@ function CancelDialog({
   );
 }
 
+function RemoveOooDialog({
+  date,
+  onConfirm,
+  onClose,
+}: {
+  date: Date;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleConfirm() {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Remove OOO block</h2>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="muted">{formatLongDateTime(date)}</p>
+        <p>This slot will be available for booking again.</p>
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Keep it
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleConfirm}
+            disabled={submitting}
+          >
+            {submitting ? "Removing…" : "Remove block"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WeekSidebar({
+  weekStart,
+  onJump,
+}: {
+  weekStart: Date;
+  onJump: (next: Date) => void;
+}) {
+  const [viewMonth, setViewMonth] = useState(
+    () => new Date(weekStart.getFullYear(), weekStart.getMonth(), 1),
+  );
+
+  useEffect(() => {
+    setViewMonth(new Date(weekStart.getFullYear(), weekStart.getMonth(), 1));
+  }, [weekStart]);
+
+  const monthDays = useMemo(() => buildMonthDays(viewMonth), [viewMonth]);
+  const monthLabel = viewMonth.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const weekEndDate = addDays(weekStart, 6);
+  const today = startOfDay(new Date());
+
+  function changeMonth(delta: number) {
+    setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + delta, 1));
+  }
+
+  return (
+    <aside className="cal-sidebar" aria-label="Calendar navigation">
+      <div className="cal-mini">
+        <div className="cal-mini-header">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => changeMonth(-1)}
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <strong>{monthLabel}</strong>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => changeMonth(1)}
+            aria-label="Next month"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+        <div className="cal-mini-grid">
+          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+            <span key={i} className="cal-mini-dow">
+              {d}
+            </span>
+          ))}
+          {monthDays.map((day) => {
+            const inMonth = day.getMonth() === viewMonth.getMonth();
+            const isInWeek = day >= weekStart && day <= weekEndDate;
+            const isToday = sameDay(day, today);
+            const classes = [
+              "cal-mini-cell",
+              inMonth ? "" : "is-outside",
+              isInWeek ? "is-in-week" : "",
+              isToday ? "is-today" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <button
+                key={day.toISOString()}
+                type="button"
+                className={classes}
+                onClick={() => onJump(startOfIsoWeek(day))}
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="cal-legend">
+        <h3>Legend</h3>
+        <ul>
+          <li>
+            <span className="cal-swatch slot-available" /> Available
+          </li>
+          <li>
+            <span className="cal-swatch slot-mine" /> Your booking
+          </li>
+          <li>
+            <span className="cal-swatch slot-busy" /> Booked
+          </li>
+          <li>
+            <span className="cal-swatch slot-ooo" /> Out of office
+          </li>
+          <li>
+            <span className="cal-swatch slot-past" /> Past
+          </li>
+        </ul>
+      </div>
+    </aside>
+  );
+}
+
+function buildMonthDays(month: Date): Date[] {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const start = startOfIsoWeek(first);
+  const days: Date[] = [];
+  for (let i = 0; i < 42; i++) {
+    days.push(addDays(start, i));
+  }
+  return days;
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 // ---------- helpers ----------
 
 function buildSlotMap(
@@ -683,6 +1077,7 @@ function buildSlotMap(
   mine: Appointment[] | Appointment[],
   selfId: number,
   trainerMode: boolean = false,
+  ooo: TrainerUnavailability[] = [],
 ): Map<string, SlotInfo> {
   const map = new Map<string, SlotInfo>();
   const now = new Date();
@@ -729,6 +1124,26 @@ function buildSlotMap(
       map.set(key, { state: "mine", appointment: appt, date: existing.date });
     } else if (existing.state !== "past") {
       map.set(key, { ...existing, state: "busy", appointment: appt });
+    }
+  }
+
+  for (const block of ooo) {
+    const start = new Date(block.starts_at);
+    const d = isoDayIndex(start, weekStart);
+    const h = start.getHours();
+    if (d < 0 || d > 6 || h < OPEN_HOUR || h > CLOSE_HOUR - 1) continue;
+    const key = `${d}-${h}`;
+    const existing = map.get(key);
+    if (!existing || existing.state === "past") continue;
+    if (trainerMode) {
+      map.set(key, {
+        ...existing,
+        state: "ooo",
+        unavailabilityId: block.id,
+      });
+    } else {
+      // Clients see OOO as just "busy" — they shouldn't know it's not a real booking.
+      map.set(key, { ...existing, state: "busy" });
     }
   }
 

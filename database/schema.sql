@@ -104,6 +104,17 @@ CREATE TABLE appointments (
     CONSTRAINT appointments_valid_time CHECK (ends_at > starts_at)
 );
 
+CREATE TABLE trainer_unavailability (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    professional_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    starts_at TIMESTAMPTZ NOT NULL,
+    ends_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT trainer_unavailability_valid_time CHECK (ends_at > starts_at)
+);
+CREATE INDEX idx_trainer_unavailability_professional_starts
+    ON trainer_unavailability(professional_id, starts_at);
+
 -- =============================================================================
 -- Plans (workout routines, nutrition plans, rehab, etc.)
 -- =============================================================================

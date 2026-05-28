@@ -13,6 +13,7 @@ from app.api.deps import (
 )
 from app.core.database import get_db
 from app.models.appointment import Appointment, AppointmentStatus
+from app.models.trainer_unavailability import TrainerUnavailability
 from app.models.user import User
 from app.models.user_relation import UserRelation
 from app.schemas.appointment import (
@@ -20,6 +21,10 @@ from app.schemas.appointment import (
     AppointmentRead,
     AppointmentStatusUpdate,
     AvailabilitySlot,
+)
+from app.schemas.trainer_unavailability import (
+    TrainerUnavailabilityCreate,
+    TrainerUnavailabilityRead,
 )
 
 router = APIRouter()
@@ -96,19 +101,29 @@ def professional_availability(
                 detail="You don't have access to this professional's calendar.",
             )
 
-    stmt = select(Appointment).where(
+    appt_stmt = select(Appointment).where(
         Appointment.professional_id == professional_id,
         Appointment.status != AppointmentStatus.cancelled,
     )
+    ooo_stmt = select(TrainerUnavailability).where(
+        TrainerUnavailability.professional_id == professional_id,
+    )
     if starts_after is not None:
-        stmt = stmt.where(Appointment.starts_at >= starts_after)
+        appt_stmt = appt_stmt.where(Appointment.starts_at >= starts_after)
+        ooo_stmt = ooo_stmt.where(TrainerUnavailability.starts_at >= starts_after)
     if starts_before is not None:
-        stmt = stmt.where(Appointment.starts_at < starts_before)
+        appt_stmt = appt_stmt.where(Appointment.starts_at < starts_before)
+        ooo_stmt = ooo_stmt.where(TrainerUnavailability.starts_at < starts_before)
 
-    return [
+    slots: list[AvailabilitySlot] = [
         AvailabilitySlot(starts_at=row.starts_at, ends_at=row.ends_at)
-        for row in db.scalars(stmt)
+        for row in db.scalars(appt_stmt)
     ]
+    slots.extend(
+        AvailabilitySlot(starts_at=row.starts_at, ends_at=row.ends_at)
+        for row in db.scalars(ooo_stmt)
+    )
+    return slots
 
 
 @router.post("/", response_model=AppointmentRead, status_code=status.HTTP_201_CREATED)
@@ -207,6 +222,19 @@ def create_appointment(
     if conflict:
         raise HTTPException(status_code=409, detail="This slot is already booked.")
 
+    ooo_conflict = db.scalar(
+        select(TrainerUnavailability).where(
+            TrainerUnavailability.professional_id == professional_id,
+            TrainerUnavailability.starts_at < ends_at,
+            TrainerUnavailability.ends_at > starts_at,
+        )
+    )
+    if ooo_conflict:
+        raise HTTPException(
+            status_code=409,
+            detail="The trainer is unavailable at that time.",
+        )
+
     appointment = Appointment(
         client_id=client_id,
         professional_id=professional_id,
@@ -267,3 +295,154 @@ def update_appointment_status(
     db.commit()
     db.refresh(appointment)
     return appointment
+
+
+# ---------------------------------------------------------------------------
+# Out-of-office (trainer unavailability) endpoints
+# ---------------------------------------------------------------------------
+
+
+def _require_professional(actor: User) -> None:
+    """Raise 403 unless ``actor`` can act as a professional (non-client role)."""
+    if not actor_can_create_clients(actor):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only professionals can manage their out-of-office calendar.",
+        )
+
+
+@router.get("/unavailable/me", response_model=list[TrainerUnavailabilityRead])
+def list_my_unavailability(
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+    starts_after: Annotated[datetime | None, Query()] = None,
+    starts_before: Annotated[datetime | None, Query()] = None,
+) -> list[TrainerUnavailability]:
+    """Return the caller's own OOO blocks within an optional date window.
+
+    Used by the trainer's calendar to render their OOO slots and let them
+    remove individual ones. Professionals only — pure clients get 403.
+    """
+    _require_professional(current_user)
+
+    stmt = select(TrainerUnavailability).where(
+        TrainerUnavailability.professional_id == current_user.id,
+    )
+    if starts_after is not None:
+        stmt = stmt.where(TrainerUnavailability.starts_at >= starts_after)
+    if starts_before is not None:
+        stmt = stmt.where(TrainerUnavailability.starts_at < starts_before)
+    stmt = stmt.order_by(TrainerUnavailability.starts_at)
+    return list(db.scalars(stmt))
+
+
+@router.post(
+    "/unavailable/",
+    response_model=list[TrainerUnavailabilityRead],
+    status_code=status.HTTP_201_CREATED,
+)
+def create_unavailability(
+    payload: TrainerUnavailabilityCreate,
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> list[TrainerUnavailability]:
+    """Mark one or more slots as OOO in a single round-trip.
+
+    Body (``TrainerUnavailabilityCreate``):
+        starts_at: List of ISO datetimes (timezone-aware). Each becomes a
+            1-hour block.
+
+    Behavior:
+      - Slots must be on the hour, hours 5..18, and in the future.
+      - Slots that overlap an existing OOO block (or any active booking
+        for the caller) are silently skipped — the response only includes
+        rows that were actually created. This keeps multi-select tolerant
+        of accidental duplicates.
+
+    Professionals only. Returns the inserted rows.
+    """
+    _require_professional(current_user)
+
+    now_utc = datetime.now(UTC)
+    created: list[TrainerUnavailability] = []
+
+    for starts_at in payload.starts_at:
+        if starts_at.tzinfo is None:
+            raise HTTPException(
+                status_code=400,
+                detail="starts_at must include a timezone (ISO with offset).",
+            )
+        if starts_at.minute != 0 or starts_at.second != 0 or starts_at.microsecond != 0:
+            raise HTTPException(status_code=400, detail="starts_at must be on the hour.")
+        local_hour = starts_at.astimezone(starts_at.tzinfo).hour
+        if local_hour < SCHEDULE_OPEN_HOUR or local_hour > SCHEDULE_LAST_START_HOUR:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Slots can only start between {SCHEDULE_OPEN_HOUR}:00 and "
+                    f"{SCHEDULE_LAST_START_HOUR}:00."
+                ),
+            )
+        if starts_at <= now_utc:
+            raise HTTPException(status_code=400, detail="Cannot mark a past slot as OOO.")
+
+        ends_at = starts_at + timedelta(hours=1)
+
+        existing_ooo = db.scalar(
+            select(TrainerUnavailability).where(
+                TrainerUnavailability.professional_id == current_user.id,
+                TrainerUnavailability.starts_at < ends_at,
+                TrainerUnavailability.ends_at > starts_at,
+            )
+        )
+        if existing_ooo is not None:
+            continue
+
+        booked = db.scalar(
+            select(Appointment).where(
+                Appointment.professional_id == current_user.id,
+                Appointment.starts_at < ends_at,
+                Appointment.ends_at > starts_at,
+                Appointment.status != AppointmentStatus.cancelled,
+            )
+        )
+        if booked is not None:
+            continue
+
+        row = TrainerUnavailability(
+            professional_id=current_user.id,
+            starts_at=starts_at,
+            ends_at=ends_at,
+        )
+        db.add(row)
+        created.append(row)
+
+    if created:
+        db.commit()
+        for row in created:
+            db.refresh(row)
+    return created
+
+
+@router.delete("/unavailable/{unavailability_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_unavailability(
+    unavailability_id: int,
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Delete a single OOO block.
+
+    Caller must be the block's owner (its ``professional_id``) or admin.
+    """
+    row = db.get(TrainerUnavailability, unavailability_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Unavailability block not found.")
+
+    if row.professional_id != current_user.id and not actor_is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't own this OOO block.",
+        )
+
+    db.delete(row)
+    db.commit()

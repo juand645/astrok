@@ -1573,9 +1573,9 @@ h1 {
 }
 
 .week-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
   gap: 16px;
   padding: 10px;
   border-radius: 10px;
@@ -1583,11 +1583,30 @@ h1 {
   border: 1px solid #dfe6da;
 }
 
+.week-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-self: center;
+}
+
 .week-nav-label {
   min-width: 160px;
   text-align: center;
   color: #17201b;
   font-size: 1rem;
+}
+
+.week-nav-today {
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #dff6e9;
+  color: #165b33;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .week-grid-wrap {
@@ -1717,6 +1736,172 @@ h1 {
     #ececea 12px
   );
   cursor: default;
+}
+
+.slot-ooo .slot-button {
+  background: #efe2f2;
+  color: #5a3c66;
+}
+
+.slot-ooo .slot-button:hover {
+  background: #e2cee9;
+}
+
+.slot-ooo .slot-label {
+  background: rgba(90, 60, 102, 0.18);
+  color: #5a3c66;
+}
+
+.slot.is-selected .slot-button {
+  outline: 2px solid #23655a;
+  outline-offset: -2px;
+  background: #cfeada;
+}
+
+.week-grid .slot-available .slot-button {
+  touch-action: none;
+  user-select: none;
+}
+
+.appointments-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.appointments-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.cal-sidebar {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #dfe6da;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.cal-mini-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: #17201b;
+  font-size: 0.95rem;
+}
+
+.cal-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.cal-mini-dow {
+  font-size: 0.7rem;
+  color: #657269;
+  padding: 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cal-mini-cell {
+  border: 0;
+  background: transparent;
+  padding: 6px 0;
+  border-radius: 6px;
+  color: #17201b;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.cal-mini-cell:hover {
+  background: #f1f8f3;
+}
+
+.cal-mini-cell.is-outside {
+  color: #c4cabe;
+}
+
+.cal-mini-cell.is-in-week {
+  background: #dff6e9;
+  color: #165b33;
+  font-weight: 700;
+}
+
+.cal-mini-cell.is-today {
+  outline: 2px solid #23655a;
+  outline-offset: -2px;
+}
+
+.cal-legend h3 {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #657269;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cal-legend ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.cal-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #344139;
+}
+
+.cal-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  flex: 0 0 16px;
+}
+
+.cal-swatch.slot-available {
+  background: #f6fbf3;
+}
+
+.cal-swatch.slot-mine {
+  background: #9be564;
+}
+
+.cal-swatch.slot-busy {
+  background: #e6e6e6;
+}
+
+.cal-swatch.slot-ooo {
+  background: #efe2f2;
+}
+
+.cal-swatch.slot-past {
+  background: repeating-linear-gradient(
+    -45deg,
+    #f3f3f0,
+    #f3f3f0 4px,
+    #ececea 4px,
+    #ececea 8px
+  );
+}
+
+@media (max-width: 900px) {
+  .appointments-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .primary-button.danger {
