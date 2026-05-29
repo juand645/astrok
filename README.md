@@ -139,11 +139,13 @@ The sidebar branches by role:
 
 | Tab | Visible to | What it does |
 |---|---|---|
-| Dashboard | everyone | Landing screen — currently placeholder content |
-| Clients | non-clients | Trainer's client list, search, detail editor, new-client form |
+| Dashboard | everyone | Landing screen — trainer dashboard (stats + upcoming + action queue) or client dashboard (next session, week summary) |
+| Clients | non-clients | Trainer's client list, search, detail editor, transfer, soft-delete, new-client form |
+| Trainers | admin | Manage trainer accounts: create, edit, soft-delete, reactivate |
 | Plan Sessions | everyone | Clients log weekly workouts; trainers browse read-only session history per client |
-| Appointments | everyone | Hourly week grid; book and cancel within the next 4 weeks |
-| AI Assistant | everyone | Placeholder — only `/assistant/appointment-suggestions` exists today and it returns canned strings |
+| Appointments | everyone | Hourly week grid with mini-calendar sidebar; trainers can drag-select slots as OOO; clients book/cancel |
+| Health | clients | PAR-Q questionnaire |
+| Profile | everyone | Edit own profile, change password, upload avatar |
 
 ## Architecture notes
 

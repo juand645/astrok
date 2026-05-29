@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, Circle, Save, Search, Sparkles, Star, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, Save, Search, Sparkles, Star, X } from "lucide-react";
 import {
   AuthUser,
   Circuito,
@@ -245,7 +245,6 @@ function DayLogPanel({
   const [rows, setRows] = useState<PerformanceEntry[]>(() =>
     buildInitialRows(prescribed, fillSource),
   );
-  const [completed, setCompleted] = useState<boolean>(thisWeekSession?.completed ?? false);
   const [notes, setNotes] = useState<string>(thisWeekSession?.notes ?? "");
   const [rating, setRating] = useState<number | null>(thisWeekSession?.rating ?? null);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -260,7 +259,6 @@ function DayLogPanel({
 
   useEffect(() => {
     setRows(buildInitialRows(prescribed, fillSource));
-    setCompleted(thisWeekSession?.completed ?? false);
     setNotes(thisWeekSession?.notes ?? "");
     setRating(thisWeekSession?.rating ?? null);
     setCoachMessage(thisWeekSession?.ai_response ?? null);
@@ -286,7 +284,7 @@ function DayLogPanel({
   async function save() {
     setFeedback(null);
 
-    if (completed && !alreadyCompletedThisWeek) {
+    if (!alreadyCompletedThisWeek) {
       setIsRatingModalOpen(true);
       return;
     }
@@ -301,7 +299,7 @@ function DayLogPanel({
         plan_id: planId,
         day_key: dayKey,
         performance: rows,
-        completed,
+        completed: true,
         rating: ratingToSave,
         notes: notes.trim() || null,
       });
@@ -309,7 +307,7 @@ function DayLogPanel({
       setRating(session.rating);
       setCoachMessage(session.ai_response ?? null);
       setFeedbackKind("ok");
-      setFeedback(completed ? "Session saved and marked as completed." : "Session saved.");
+      setFeedback("Session saved and marked as completed.");
 
       if (session.completed && !session.ai_response) {
         setIsLoadingCoach(true);
@@ -384,15 +382,6 @@ function DayLogPanel({
         />
       ) : null}
 
-      <button
-        type="button"
-        className={`completion-toggle ${completed ? "is-completed" : ""}`}
-        onClick={() => setCompleted((current) => !current)}
-        aria-pressed={completed}
-      >
-        {completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-        <span>{completed ? "Marking as complete" : "Mark as complete"}</span>
-      </button>
 
       {isLoading ? (
         <p>Loading last session...</p>

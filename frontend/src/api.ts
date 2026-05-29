@@ -27,46 +27,6 @@ export type LoginResponse = {
   user: AuthUser;
 };
 
-export type RoutineDraftRequest = {
-  client_id: number;
-  instructor_id: number;
-  goal: string;
-  experience_level: string;
-  days_per_week: number;
-  limitations: string[];
-  available_equipment: string[];
-};
-
-export type ExerciseBlock = {
-  day: string;
-  focus: string;
-  exercises: string[];
-  notes?: string | null;
-};
-
-export type RoutineDraft = {
-  client_id: number;
-  instructor_id: number;
-  title: string;
-  goal: string;
-  plan: ExerciseBlock[];
-};
-
-export async function generateRoutineDraft(payload: RoutineDraftRequest): Promise<RoutineDraft> {
-  const response = await fetch(`${API_URL}/api/routines/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    notifyIfSessionExpired(response);
-    throw new Error("Could not generate routine draft.");
-  }
-
-  return response.json();
-}
-
 export async function login(identifier: string, password: string): Promise<LoginResponse> {
   const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
@@ -249,17 +209,6 @@ export function exerciseThumbnailUrl(exercise: {
   return null;
 }
 
-export function exerciseVideoHref(exercise: {
-  url_video?: string;
-  image_url?: string;
-}): string | null {
-  const video = (exercise.url_video ?? "").trim();
-  if (video) return video;
-  const image = (exercise.image_url ?? "").trim();
-  if (image && parseYouTubeId(image)) return image;
-  return null;
-}
-
 export function exerciseYoutubeId(exercise: {
   url_video?: string;
   image_url?: string;
@@ -305,8 +254,6 @@ export type Circuito = {
 };
 
 export type PlanContent = Record<string, Circuito[]>;
-
-export type LegacyPlanContent = Record<string, ExerciseEntry[]>;
 
 export function flattenDayContent(
   value: Circuito[] | ExerciseEntry[] | undefined | null,

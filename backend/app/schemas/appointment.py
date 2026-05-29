@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.models.appointment import AppointmentStatus
 
@@ -33,10 +33,3 @@ class AppointmentStatusUpdate(BaseModel):
 class AvailabilitySlot(BaseModel):
     starts_at: datetime
     ends_at: datetime
-
-
-class AppointmentSuggestionRequest(BaseModel):
-    client_id: int
-    professional_id: int
-    preferred_days: list[str] = Field(default_factory=list)
-    goal: str
