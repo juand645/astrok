@@ -214,9 +214,26 @@ export function App() {
         </nav>
 
         <div className="session-card">
-          <span>Signed in as</span>
-          <strong>{currentUser.full_name}</strong>
-          <small>{currentUser.roles.join(", ") || "No role"}</small>
+          <div className="session-card-identity">
+            <button
+              type="button"
+              className="session-avatar"
+              onClick={() => navigateTo("profile")}
+              aria-label="Open profile"
+              title="Open profile"
+            >
+              {currentUser.photo_url ? (
+                <img src={currentUser.photo_url} alt="" />
+              ) : (
+                <span>{sessionInitials(currentUser.full_name)}</span>
+              )}
+            </button>
+            <div className="session-card-text">
+              <span>Signed in as</span>
+              <strong>{currentUser.full_name}</strong>
+              <small>{currentUser.roles.join(", ") || "No role"}</small>
+            </div>
+          </div>
           <button className="nav-item logout-button" onClick={handleLogout}>
             <LogOut size={18} />
             Sign out
@@ -305,4 +322,14 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function sessionInitials(fullName: string): string {
+  return fullName
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }

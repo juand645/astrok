@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
+    # Object storage (Cloudflare R2, S3, or any S3-compatible).
+    # Leave the account/key empty to disable avatar uploads in dev.
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = ""
+    r2_public_url: str = ""  # e.g. https://pub-<hash>.r2.dev or a custom domain
+    r2_endpoint_url: str | None = None  # auto-derived from account_id when blank
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property

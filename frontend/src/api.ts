@@ -15,6 +15,7 @@ export type AuthUser = {
   id_number: string | null;
   birth_date: string | null;
   description: string | null;
+  photo_url: string | null;
   active: boolean;
   roles: string[];
   professional_id: number | null;
@@ -127,6 +128,38 @@ export async function changePassword(
     const detail = await response.json().catch(() => null);
     throw new Error(detail?.detail ?? "Could not change password.");
   }
+}
+
+export async function uploadMyAvatar(
+  accessToken: string,
+  file: File,
+): Promise<AuthUser> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_URL}/api/auth/me/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not upload avatar.");
+  }
+  return response.json();
+}
+
+export async function deleteMyAvatar(accessToken: string): Promise<AuthUser> {
+  const response = await fetch(`${API_URL}/api/auth/me/avatar`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not remove avatar.");
+  }
+  return response.json();
 }
 
 export async function getCurrentUser(accessToken: string): Promise<AuthUser> {

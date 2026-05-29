@@ -1,11 +1,13 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { KeyRound, Ruler, Save, UserCircle } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { KeyRound, Ruler, Save, Trash2, Upload, UserCircle } from "lucide-react";
 import {
   AuthUser,
   ClientDetail,
   changePassword,
+  deleteMyAvatar,
   fetchClientDetail,
   updateMyProfile,
+  uploadMyAvatar,
 } from "../../api";
 
 type Props = {
@@ -25,6 +27,12 @@ export function ProfileModule({ accessToken, currentUser, onProfileUpdated }: Pr
         </div>
       </header>
 
+      <AvatarPanel
+        accessToken={accessToken}
+        currentUser={currentUser}
+        onProfileUpdated={onProfileUpdated}
+      />
+
       <BasicInfoPanel
         accessToken={accessToken}
         currentUser={currentUser}
@@ -38,6 +46,123 @@ export function ProfileModule({ accessToken, currentUser, onProfileUpdated }: Pr
       ) : null}
     </section>
   );
+}
+
+// ---------- Avatar ----------
+
+function AvatarPanel({
+  accessToken,
+  currentUser,
+  onProfileUpdated,
+}: {
+  accessToken: string;
+  currentUser: AuthUser;
+  onProfileUpdated: (user: AuthUser) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [isWorking, setIsWorking] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackKind, setFeedbackKind] = useState<"ok" | "error">("ok");
+
+  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsWorking(true);
+    setFeedback(null);
+    try {
+      const updated = await uploadMyAvatar(accessToken, file);
+      onProfileUpdated(updated);
+      setFeedbackKind("ok");
+      setFeedback("Photo updated.");
+    } catch (err) {
+      setFeedbackKind("error");
+      setFeedback(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function handleRemove() {
+    setIsWorking(true);
+    setFeedback(null);
+    try {
+      const updated = await deleteMyAvatar(accessToken);
+      onProfileUpdated(updated);
+      setFeedbackKind("ok");
+      setFeedback("Photo removed.");
+    } catch (err) {
+      setFeedbackKind("error");
+      setFeedback(err instanceof Error ? err.message : "Remove failed.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div className="coach-card-header">
+          <UserCircle size={16} />
+          <span>Profile picture</span>
+        </div>
+        <span className="muted">Shown in your session card and on cards.</span>
+      </div>
+
+      <div className="avatar-panel-body">
+        <div className="avatar-preview" aria-hidden="true">
+          {currentUser.photo_url ? (
+            <img src={currentUser.photo_url} alt="" />
+          ) : (
+            <span>{getInitials(currentUser.full_name)}</span>
+          )}
+        </div>
+        <div className="avatar-panel-actions">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="visually-hidden"
+            onChange={handleFile}
+          />
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => inputRef.current?.click()}
+            disabled={isWorking}
+          >
+            <Upload size={16} />
+            {isWorking ? "Working…" : currentUser.photo_url ? "Replace photo" : "Upload photo"}
+          </button>
+          {currentUser.photo_url ? (
+            <button
+              type="button"
+              className="secondary-button danger-button"
+              onClick={handleRemove}
+              disabled={isWorking}
+            >
+              <Trash2 size={16} /> Remove
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {feedback ? (
+        <p className={feedbackKind === "ok" ? "muted" : "error-text"}>{feedback}</p>
+      ) : null}
+    </section>
+  );
+}
+
+function getInitials(fullName: string): string {
+  return fullName
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 // ---------- Basic info ----------

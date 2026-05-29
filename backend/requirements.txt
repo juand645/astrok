@@ -2,6 +2,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 bcrypt==4.0.1
+boto3==1.43.16
 click==8.3.3
 colorama==0.4.6
 dnspython==2.8.0
@@ -14,6 +15,7 @@ h11==0.16.0
 httptools==0.7.1
 idna==3.14
 passlib==1.7.4
+Pillow==12.2.0
 psycopg==3.3.4
 psycopg-binary==3.3.4
 pydantic==2.13.4
@@ -21,6 +23,7 @@ pydantic-settings==2.14.1
 pydantic_core==2.46.4
 PyJWT==2.12.1
 python-dotenv==1.2.2
+python-multipart==0.0.29
 PyYAML==6.0.3
 SQLAlchemy==2.0.49
 starlette==1.0.0

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -23,6 +23,13 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.schemas.user import UserRead
+from app.services.storage import (
+    InvalidImageError,
+    StorageNotConfiguredError,
+    delete_avatar,
+    storage_is_configured,
+    upload_avatar,
+)
 
 router = APIRouter()
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -166,6 +173,66 @@ def change_password(
     db.commit()
 
 
+@router.post("/me/avatar", response_model=UserRead)
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    """Replace the caller's profile picture.
+
+    Body: multipart/form-data, ``file`` field. Accepts any common image
+    format (JPEG/PNG/WebP/HEIC). The server center-crops to a square,
+    resizes to 256×256, encodes as WebP, and stores at
+    ``avatars/<user_id>.webp`` on the configured object store.
+
+    Returns the refreshed ``UserRead`` (``photo_url`` is the new public URL).
+    """
+    if not storage_is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Avatar uploads are not configured on this server.",
+        )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty upload.")
+
+    try:
+        url = upload_avatar(user_id=current_user.id, raw=raw)
+    except InvalidImageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StorageNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    current_user.photo_url = url
+    current_user.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(current_user)
+    return serialize_user(current_user, db)
+
+
+@router.delete("/me/avatar", response_model=UserRead)
+def delete_my_avatar(
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    """Clear the caller's profile picture (deletes the object + nulls the URL)."""
+    if current_user.photo_url:
+        try:
+            delete_avatar(current_user.id)
+        except Exception:  # noqa: BLE001
+            # Storage errors here shouldn't block clearing the DB pointer.
+            pass
+    current_user.photo_url = None
+    current_user.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(current_user)
+    return serialize_user(current_user, db)
+
+
 def serialize_user(user: User, db: Session | None = None) -> UserRead:
     """Build the API-facing ``UserRead`` from an ORM ``User``.
 
@@ -203,6 +270,7 @@ def serialize_user(user: User, db: Session | None = None) -> UserRead:
         id_number=user.id_number,
         birth_date=user.birth_date,
         description=user.description,
+        photo_url=user.photo_url,
         active=user.active,
         roles=[user_role.role.name for user_role in user.roles if user_role.role.active],
         professional_id=professional_id,

@@ -24,6 +24,7 @@ class UserRead(BaseModel):
     id_number: str | None = None
     birth_date: date | None = None
     description: str | None = None
+    photo_url: str | None = None
     active: bool
     roles: list[str] = Field(default_factory=list)
     professional_id: int | None = None

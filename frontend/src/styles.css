@@ -159,10 +159,56 @@ button {
 
 .session-card {
   display: grid;
-  gap: 6px;
+  gap: 10px;
   margin-top: auto;
   padding-top: 18px;
   border-top: 1px solid rgba(220, 232, 223, 0.18);
+}
+
+.session-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.session-card-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-avatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 50%;
+  background: #2e3a32;
+  color: #c8f2aa;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.session-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px rgba(155, 229, 100, 0.4);
+}
+
+.session-avatar:focus-visible {
+  outline: 2px solid #9be564;
+  outline-offset: 2px;
+}
+
+.session-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .session-card span,
@@ -172,6 +218,54 @@ button {
 
 .session-card strong {
   color: #ffffff;
+  word-break: break-word;
+}
+
+.avatar-panel-body {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.avatar-preview {
+  width: 96px;
+  height: 96px;
+  flex: 0 0 96px;
+  border-radius: 50%;
+  background: #f1f8f3;
+  color: #17201b;
+  font-size: 1.3rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #dfe6da;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-panel-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .logout-button {
@@ -2131,9 +2225,7 @@ h1 {
     display: none;
   }
 
-  .sidebar.is-collapsed .session-card > strong,
-  .sidebar.is-collapsed .session-card > span,
-  .sidebar.is-collapsed .session-card > small {
+  .sidebar.is-collapsed .session-card .session-card-text {
     display: none;
   }
 
@@ -2165,8 +2257,8 @@ h1 {
     border-top: 0;
   }
 
-  .session-card > span,
-  .session-card > small {
+  .session-card .session-card-text > span,
+  .session-card .session-card-text > small {
     display: none;
   }
 
