@@ -36,7 +36,8 @@ backend/
     main.py
   pyproject.toml
 database/
-  schema.sql         # base PostgreSQL schema (roles, permissions, tables)
+  schema.sql           # base PostgreSQL schema + roles, permissions, bootstrap admin
+  seed-dev-users.sql   # demo trainers/clients with shared password (dev only)
 docs/
   ai-agent-design.md
 frontend/
@@ -66,11 +67,27 @@ CREATE USER gym_admin WITH PASSWORD 'gym_admin';
 GRANT ALL PRIVILEGES ON DATABASE gym_training TO gym_admin;
 ```
 
-Load the base schema (creates tables in the `astrok` namespace and seeds base roles + permissions):
+Load the base schema (creates tables in the `astrok` namespace, seeds roles + permissions, and creates a bootstrap admin):
 
 ```powershell
 psql -h localhost -U gym_admin -d gym_training -f database/schema.sql
 ```
+
+The bootstrap admin from `schema.sql` is:
+
+| username | password |
+|---|---|
+| `admin` | `ChangeMe123!` |
+
+**Change that password on first login.** For production deploys, that admin is your only way in until you create more users through the app.
+
+For local development you probably also want the demo fixtures (Carlos / Mariana / Ana / etc.) — load them with:
+
+```powershell
+psql -h localhost -U gym_admin -d gym_training -f database/seed-dev-users.sql
+```
+
+All dev users share the password `Password123!`. **Do not run this against a production database.**
 
 The backend sets `search_path = astrok,public` on every connection, so the `astrok` prefix isn't needed in app queries.
 
@@ -131,7 +148,7 @@ The dev environment uses these accounts. All trainers and clients share the pass
 
 There's also an admin account (`juand645`) used during development; its password is set out-of-band, not the shared demo password.
 
-> **Heads-up:** `database/schema.sql` only seeds the base roles and permissions, not these users. They were created during development via `POST /api/clients/` and direct INSERTs. To reproduce on a fresh DB you can either sign up new users via the app's "New client" form (logged in as a trainer) or write a one-off seed script. Each client is linked to a trainer via `user_relations` — relations are created by the new-client flow automatically.
+> **Heads-up:** `database/schema.sql` only seeds the base roles, permissions, and the bootstrap `admin` account. The full dev cast above lives in `database/seed-dev-users.sql` (apply that for local dev parity). On a fresh production database, log in as `admin` / `ChangeMe123!`, change the password, and create your real trainers/clients through the UI.
 
 ## Module overview
 

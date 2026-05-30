@@ -9,8 +9,6 @@ dnspython==2.8.0
 email-validator==2.3.0
 fastapi==0.136.1
 greenlet==3.5.0
-# Editable install with no version control (gym-ai-backend==0.1.0)
--e d:\practicas\gym\backend
 h11==0.16.0
 httptools==0.7.1
 idna==3.14
