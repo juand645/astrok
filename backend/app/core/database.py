@@ -8,8 +8,29 @@ from app.core.config import settings
 
 POSTGRES_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-is_sqlite = settings.database_url.startswith("sqlite")
-is_postgres = settings.database_url.startswith(("postgresql", "postgres"))
+
+def _normalize_database_url(url: str) -> str:
+    """Force psycopg 3 as the Postgres driver.
+
+    Hosted Postgres providers (Railway, Heroku, Render) typically expose
+    ``DATABASE_URL`` with no driver suffix (``postgresql://...`` or the legacy
+    ``postgres://``). SQLAlchemy interprets bare ``postgresql://`` as
+    ``postgresql+psycopg2://`` by default, but we ship psycopg 3 — not psycopg2.
+    Rewriting the URL here keeps the runtime working regardless of how the
+    operator set ``DATABASE_URL``.
+    """
+    if url.startswith("postgresql+"):
+        return url
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    return url
+
+
+database_url = _normalize_database_url(settings.database_url)
+is_sqlite = database_url.startswith("sqlite")
+is_postgres = database_url.startswith(("postgresql", "postgres"))
 database_schema = settings.database_schema if is_postgres else None
 
 if database_schema and not POSTGRES_IDENTIFIER_PATTERN.match(database_schema):
@@ -20,7 +41,7 @@ connect_args = {"check_same_thread": False} if is_sqlite else {}
 if database_schema:
     connect_args["options"] = f"-csearch_path={database_schema},public"
 
-engine = create_engine(settings.database_url, connect_args=connect_args)
+engine = create_engine(database_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
