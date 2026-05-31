@@ -359,8 +359,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                           <th>Ejercicio</th>
                           <th>Repeticiones</th>
                           <th>Peso</th>
-                          <th>URL video</th>
-                          <th>Image URL</th>
+                          <th>Media URL</th>
                           <th aria-label="Actions" />
                         </tr>
                       </thead>
@@ -415,33 +414,17 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                                 }
                               />
                             </td>
-                            <td data-label="URL video">
+                            <td data-label="Media URL">
                               <input
                                 type="text"
-                                value={exercise.url_video}
-                                placeholder="https://..."
+                                value={exercise.media_url}
+                                placeholder="YouTube link, image, GIF, or .mp4"
                                 onChange={(event) =>
                                   updateExercise(
                                     activeDay,
                                     circuitoIndex,
                                     exerciseIndex,
-                                    "url_video",
-                                    event.target.value,
-                                  )
-                                }
-                              />
-                            </td>
-                            <td data-label="Image URL">
-                              <input
-                                type="text"
-                                value={exercise.image_url ?? ""}
-                                placeholder="optional — auto from YouTube otherwise"
-                                onChange={(event) =>
-                                  updateExercise(
-                                    activeDay,
-                                    circuitoIndex,
-                                    exerciseIndex,
-                                    "image_url",
+                                    "media_url",
                                     event.target.value,
                                   )
                                 }
@@ -463,7 +446,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                         ))}
                         {circuito.exercises.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="muted center">
+                            <td colSpan={5} className="muted center">
                               No exercises in this circuit yet.
                             </td>
                           </tr>

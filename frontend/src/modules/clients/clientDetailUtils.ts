@@ -50,7 +50,19 @@ export function nextDayKey(existing: string[]): string {
 }
 
 export function defaultExercise(): ExerciseEntry {
-  return { ejercicio: "", repeticiones: 10, peso: "", url_video: "" };
+  return { ejercicio: "", repeticiones: 10, peso: "", media_url: "" };
+}
+
+/** Legacy plans stored ``url_video`` + ``image_url`` separately. Migrate either
+ *  one into the unified ``media_url`` field, preferring an explicit
+ *  ``image_url`` override when ``url_video`` is empty. */
+function pickMediaUrl(exercise: Record<string, unknown>): string {
+  const media = typeof exercise.media_url === "string" ? exercise.media_url.trim() : "";
+  if (media) return media;
+  const video = typeof exercise.url_video === "string" ? exercise.url_video.trim() : "";
+  if (video) return video;
+  const image = typeof exercise.image_url === "string" ? exercise.image_url.trim() : "";
+  return image;
 }
 
 export function defaultCircuito(): Circuito {
@@ -74,30 +86,30 @@ export function normalizeContent(content: unknown): PlanContent {
       Array.isArray((firstItem as { exercises?: unknown }).exercises);
 
     if (isCircuitShape) {
-      normalized[day] = (value as Circuito[]).map((circuito) => ({
+      normalized[day] = (value as Array<Record<string, unknown>>).map((circuito) => ({
         series: typeof circuito.series === "number" ? circuito.series : 3,
         exercises: (Array.isArray(circuito.exercises) ? circuito.exercises : []).map(
-          (exercise) => ({
-            ejercicio: exercise.ejercicio ?? "",
+          (exercise: Record<string, unknown>) => ({
+            ejercicio: typeof exercise.ejercicio === "string" ? exercise.ejercicio : "",
             repeticiones: Number(exercise.repeticiones) || 0,
-            peso: exercise.peso ?? "",
-            url_video: exercise.url_video ?? "",
-            image_url: exercise.image_url ?? "",
+            peso: typeof exercise.peso === "string" ? exercise.peso : "",
+            media_url: pickMediaUrl(exercise),
           }),
         ),
       }));
     } else {
-      const legacy = value as ExerciseEntry[];
+      const legacy = value as Array<Record<string, unknown>>;
+      const firstSeries = legacy[0]?.series;
       const wrappedSeries =
-        typeof legacy[0]?.series === "number" && legacy[0].series! > 0 ? legacy[0].series! : 3;
+        typeof firstSeries === "number" && firstSeries > 0 ? firstSeries : 3;
       normalized[day] = [
         {
           series: wrappedSeries,
           exercises: legacy.map((exercise) => ({
-            ejercicio: exercise.ejercicio ?? "",
+            ejercicio: typeof exercise.ejercicio === "string" ? exercise.ejercicio : "",
             repeticiones: Number(exercise.repeticiones) || 0,
-            peso: exercise.peso ?? "",
-            url_video: exercise.url_video ?? "",
+            peso: typeof exercise.peso === "string" ? exercise.peso : "",
+            media_url: pickMediaUrl(exercise),
           })),
         },
       ];
@@ -115,8 +127,7 @@ export function cleanContent(content: PlanContent): PlanContent {
         ejercicio: exercise.ejercicio,
         repeticiones: exercise.repeticiones,
         peso: exercise.peso,
-        url_video: exercise.url_video,
-        image_url: (exercise.image_url ?? "").trim() || undefined,
+        media_url: (exercise.media_url ?? "").trim(),
       })),
     }));
   }

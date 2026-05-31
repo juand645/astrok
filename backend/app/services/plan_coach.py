@@ -69,7 +69,7 @@ fenced with three backticks and the word "plan", like this:
   "description": "One-line summary",
   "content": {{
     "dia_1": [
-      {{ "ejercicio": "Press de banca", "repeticiones": 5, "peso": "70kg", "url_video": "" }}
+      {{ "ejercicio": "Press de banca", "repeticiones": 5, "peso": "70kg", "media_url": "" }}
     ],
     "dia_2": [ ... ]
   }}
@@ -82,7 +82,8 @@ Rules for the JSON block:
 - `content` uses keys `dia_1`, `dia_2`, ... matching the training days.
 - Each day is an array of exercises. Each exercise has `ejercicio` (name),
   `repeticiones` (integer 0-99), `peso` (string like "70kg", "N/A", or
-  "Corporal"), and `url_video` (string, may be empty).
+  "Corporal"), and `media_url` (string, may be empty — YouTube link, GIF,
+  or image URL).
 - Only emit the JSON when you have enough information. Do not emit
   incomplete plans. If you need more details, ask first.
 - Outside the JSON block, write a normal conversational reply.
@@ -286,7 +287,7 @@ def plan_draft_to_plan_payload(draft: PlanDraft) -> dict[str, Any]:
                 "ejercicio": e.ejercicio,
                 "repeticiones": e.repeticiones,
                 "peso": e.peso,
-                "url_video": e.url_video,
+                "media_url": e.media_url,
             }
             for e in exercises
         ]

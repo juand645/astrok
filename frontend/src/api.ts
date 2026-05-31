@@ -188,42 +188,34 @@ export type ExerciseEntry = {
   series?: number;
   repeticiones: number;
   peso: string;
-  url_video: string;
-  image_url?: string;
+  media_url: string;
 };
 
-export function exerciseThumbnailUrl(exercise: {
-  url_video?: string;
-  image_url?: string;
-}): string | null {
-  const explicit = (exercise.image_url ?? "").trim();
-  if (explicit) {
-    const youtubeFromImage = parseYouTubeId(explicit);
-    if (youtubeFromImage) {
-      return `https://img.youtube.com/vi/${youtubeFromImage}/hqdefault.jpg`;
-    }
-    return explicit;
-  }
-  const videoId = parseYouTubeId(exercise.url_video ?? "");
-  if (videoId) return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  return null;
+/** Returns the URL of the static image to show as a thumbnail, or ``null``.
+ *
+ * - YouTube URLs in ``media_url`` resolve to ``img.youtube.com/.../hqdefault.jpg``.
+ * - Any other URL is treated as a direct image (jpg, png, gif, webp, etc.).
+ * - Empty / unset ``media_url`` returns ``null`` so the caller can render a placeholder.
+ */
+export function exerciseThumbnailUrl(exercise: { media_url?: string }): string | null {
+  const value = (exercise.media_url ?? "").trim();
+  if (!value) return null;
+  const youtubeId = parseYouTubeId(value);
+  if (youtubeId) return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+  return value;
 }
 
-export function exerciseYoutubeId(exercise: {
-  url_video?: string;
-  image_url?: string;
-}): string | null {
-  const fromVideo = parseYouTubeId(exercise.url_video ?? "");
-  if (fromVideo) return fromVideo;
-  return parseYouTubeId(exercise.image_url ?? "");
+/** YouTube video ID from ``media_url`` if it parses as YouTube; else ``null``. */
+export function exerciseYoutubeId(exercise: { media_url?: string }): string | null {
+  return parseYouTubeId(exercise.media_url ?? "");
 }
 
-export function exerciseFullImageUrl(exercise: {
-  url_video?: string;
-  image_url?: string;
-}): string | null {
-  const image = (exercise.image_url ?? "").trim();
-  if (image && !parseYouTubeId(image)) return image;
+/** Full-size image URL for the lightbox modal — only when ``media_url`` is NOT
+ *  a YouTube link (those are rendered as an iframe instead).
+ */
+export function exerciseFullImageUrl(exercise: { media_url?: string }): string | null {
+  const value = (exercise.media_url ?? "").trim();
+  if (value && !parseYouTubeId(value)) return value;
   return null;
 }
 
@@ -597,7 +589,7 @@ export type DraftExercise = {
   ejercicio: string;
   repeticiones: number;
   peso: string;
-  url_video: string;
+  media_url: string;
 };
 
 export type PlanDraft = {

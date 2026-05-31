@@ -18,7 +18,7 @@ class DraftExercise(BaseModel):
     ejercicio: str
     repeticiones: int = Field(ge=0, le=99)
     peso: str = ""
-    url_video: str = ""
+    media_url: str = ""
 
 
 class PlanDraft(BaseModel):
