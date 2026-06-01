@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Eye, HeartPulse, Plus, X } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   ParQAssessment,
   enableParQ,
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function HealthScreeningCard({ accessToken, clientId }: Props) {
+  const { t, i18n } = useTranslation();
   const [assessments, setAssessments] = useState<ParQAssessment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function HealthScreeningCard({ accessToken, clientId }: Props) {
       const list = await fetchClientParQList(accessToken, clientId);
       setAssessments(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load PAR-Q.");
+      setError(err instanceof Error ? err.message : t("clients.health.errorLoad"));
     } finally {
       setIsLoading(false);
     }
@@ -52,21 +54,21 @@ export function HealthScreeningCard({ accessToken, clientId }: Props) {
       await enableParQ(accessToken, clientId);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not enable PAR-Q.");
+      setError(err instanceof Error ? err.message : t("clients.health.errorEnable"));
     } finally {
       setIsEnabling(false);
     }
   }
 
   const enableLabel =
-    latestCompleted && !pending ? "Enable new PAR-Q" : "Enable PAR-Q";
+    latestCompleted && !pending ? t("clients.health.enableNew") : t("clients.health.enable");
 
   return (
     <section className="panel">
       <div className="panel-header">
         <div className="coach-card-header">
           <HeartPulse size={16} />
-          <span>Health screening</span>
+          <span>{t("clients.health.heading")}</span>
         </div>
         {!pending && !isLoading ? (
           <button
@@ -75,26 +77,26 @@ export function HealthScreeningCard({ accessToken, clientId }: Props) {
             onClick={handleEnable}
             disabled={isEnabling}
           >
-            <Plus size={16} /> {isEnabling ? "Enabling…" : enableLabel}
+            <Plus size={16} /> {isEnabling ? t("clients.health.enabling") : enableLabel}
           </button>
         ) : null}
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
 
-      {isLoading ? <p className="muted">Loading…</p> : null}
+      {isLoading ? <p className="muted">{t("clients.health.loading")}</p> : null}
 
       {!isLoading && !pending && !latestCompleted ? (
-        <p className="muted">
-          No PAR-Q on record. Enable one when this client should complete a health screening.
-        </p>
+        <p className="muted">{t("clients.health.empty")}</p>
       ) : null}
 
       {pending ? (
         <div className="parq-status-row">
-          <span className="status-pill status-review">Awaiting client</span>
+          <span className="status-pill status-review">{t("clients.health.awaitingClient")}</span>
           <span className="muted">
-            Sent {new Date(pending.requested_at).toLocaleDateString()}
+            {t("clients.health.sentOn", {
+              date: new Date(pending.requested_at).toLocaleDateString(i18n.language),
+            })}
           </span>
         </div>
       ) : null}
@@ -103,25 +105,26 @@ export function HealthScreeningCard({ accessToken, clientId }: Props) {
         <div className="parq-status-row">
           {latestCompleted.responses?.any_yes ? (
             <span className="status-pill status-review parq-warning">
-              <AlertTriangle size={14} /> Medical clearance recommended
+              <AlertTriangle size={14} /> {t("clients.health.clearanceRecommended")}
             </span>
           ) : (
             <span className="status-pill status-approved">
-              <CheckCircle2 size={14} /> Cleared
+              <CheckCircle2 size={14} /> {t("clients.health.cleared")}
             </span>
           )}
           <span className="muted">
-            Completed{" "}
-            {latestCompleted.completed_at
-              ? new Date(latestCompleted.completed_at).toLocaleDateString()
-              : "—"}
+            {t("clients.health.completedOn", {
+              date: latestCompleted.completed_at
+                ? new Date(latestCompleted.completed_at).toLocaleDateString(i18n.language)
+                : "—",
+            })}
           </span>
           <button
             type="button"
             className="secondary-button"
             onClick={() => setReviewing(latestCompleted)}
           >
-            <Eye size={16} /> View responses
+            <Eye size={16} /> {t("clients.health.viewResponses")}
           </button>
         </div>
       ) : null}
@@ -140,33 +143,42 @@ function ParQReviewModal({
   assessment: ParQAssessment;
   onClose: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const responses = assessment.responses;
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-panel parq-review-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>PAR-Q responses</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <h2>{t("clients.health.responsesTitle")}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+          >
             <X size={16} />
           </button>
         </div>
         <p className="muted">
-          Completed{" "}
-          {assessment.completed_at
-            ? new Date(assessment.completed_at).toLocaleString()
-            : "—"}
+          {t("clients.health.completedAt", {
+            datetime: assessment.completed_at
+              ? new Date(assessment.completed_at).toLocaleString(i18n.language)
+              : "—",
+          })}
         </p>
 
         {responses?.any_yes ? (
           <div className="parq-flag">
             <AlertTriangle size={16} />
             <span>
-              Client answered <strong>yes</strong> to one or more questions. Medical
-              clearance is recommended before training.
+              <Trans i18nKey="clients.health.flaggedYes">
+                Client answered <strong>yes</strong> to one or more questions. Medical clearance is
+                recommended before training.
+              </Trans>
             </span>
           </div>
         ) : (
-          <p className="muted">All answers were "no" — no flags raised.</p>
+          <p className="muted">{t("clients.health.allNo")}</p>
         )}
 
         <ol className="parq-readonly">
@@ -176,7 +188,7 @@ function ParQReviewModal({
                 <strong>{idx + 1}.</strong> {q.text}
               </p>
               <p className={q.answer === "yes" ? "parq-answer yes" : "parq-answer no"}>
-                {q.answer === "yes" ? "Sí" : "No"}
+                {q.answer === "yes" ? t("clients.health.answerYes") : t("clients.health.answerNo")}
                 {q.follow_up ? ` — ${q.follow_up}` : ""}
               </p>
             </li>
@@ -191,7 +203,7 @@ function ParQReviewModal({
 
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
         </div>
       </div>

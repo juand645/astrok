@@ -12,6 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AuthUser, getCurrentUser } from "./api";
 import { LoginModule } from "./modules/auth/LoginModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
@@ -37,6 +38,7 @@ type ActiveView =
   | "profile";
 
 export function App() {
+  const { t } = useTranslation();
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [accessToken, setAccessToken] = useState(() => localStorage.getItem("gym_access_token"));
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -109,7 +111,7 @@ export function App() {
             </div>
             <div>
               <strong>Gym AI</strong>
-              <span>Loading session</span>
+              <span>{t("session.loading")}</span>
             </div>
           </div>
         </section>
@@ -161,7 +163,7 @@ export function App() {
             onClick={() => navigateTo("dashboard")}
           >
             <CalendarDays size={18} />
-            Dashboard
+            {t("nav.dashboard")}
           </button>
           {!isClient && (
             <button
@@ -169,7 +171,7 @@ export function App() {
               onClick={() => navigateTo("clients")}
             >
               <Users size={18} />
-              Clients
+              {t("nav.clients")}
             </button>
           )}
           {isAdmin && (
@@ -178,7 +180,7 @@ export function App() {
               onClick={() => navigateTo("trainers")}
             >
               <ShieldCheck size={18} />
-              Trainers
+              {t("nav.trainers")}
             </button>
           )}
           <button
@@ -186,14 +188,14 @@ export function App() {
             onClick={() => navigateTo("sessions")}
           >
             <ClipboardCheck size={18} />
-            Plan Sessions
+            {t("nav.sessions")}
           </button>
           <button
             className={`nav-item ${resolvedView === "appointments" ? "active" : ""}`}
             onClick={() => navigateTo("appointments")}
           >
             <Calendar size={18} />
-            Appointments
+            {t("nav.appointments")}
           </button>
           {isClient ? (
             <button
@@ -201,7 +203,7 @@ export function App() {
               onClick={() => navigateTo("health")}
             >
               <HeartPulse size={18} />
-              Health
+              {t("nav.health")}
             </button>
           ) : null}
           <button
@@ -209,7 +211,7 @@ export function App() {
             onClick={() => navigateTo("profile")}
           >
             <UserCircle size={18} />
-            Profile
+            {t("nav.profile")}
           </button>
         </nav>
 
@@ -229,14 +231,14 @@ export function App() {
               )}
             </button>
             <div className="session-card-text">
-              <span>Signed in as</span>
+              <span>{t("session.signedInAs")}</span>
               <strong>{currentUser.full_name}</strong>
-              <small>{currentUser.roles.join(", ") || "No role"}</small>
+              <small>{currentUser.roles.join(", ") || t("session.noRole")}</small>
             </div>
           </div>
           <button className="nav-item logout-button" onClick={handleLogout}>
             <LogOut size={18} />
-            Sign out
+            {t("session.signOut")}
           </button>
         </div>
       </aside>

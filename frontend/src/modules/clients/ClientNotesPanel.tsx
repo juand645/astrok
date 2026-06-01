@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ClientDetail, updateClient } from "../../api";
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function ClientNotesPanel({ accessToken, client, onSaved }: Props) {
+  const { t } = useTranslation();
   const [description, setDescription] = useState(client.description ?? "");
   const [personalNumber, setPersonalNumber] = useState(client.personal_number ?? "");
   const [idNumber, setIdNumber] = useState(client.id_number ?? "");
@@ -47,10 +49,10 @@ export function ClientNotesPanel({ accessToken, client, onSaved }: Props) {
       });
       onSaved(updated);
       setFeedbackKind("ok");
-      setFeedback("Saved.");
+      setFeedback(t("clients.notes.saved"));
     } catch (currentError) {
       setFeedbackKind("error");
-      setFeedback(currentError instanceof Error ? currentError.message : "Save failed.");
+      setFeedback(currentError instanceof Error ? currentError.message : t("clients.notes.errorSave"));
     } finally {
       setIsSaving(false);
     }
@@ -65,46 +67,46 @@ export function ClientNotesPanel({ accessToken, client, onSaved }: Props) {
   return (
     <section className="panel">
       <div className="panel-header">
-        <h2>Notes</h2>
-        <span>Goal, history, anything the client needs you to remember.</span>
+        <h2>{t("clients.notes.heading")}</h2>
+        <span>{t("clients.notes.hint")}</span>
       </div>
 
       <label className="field">
-        <span>Personal number</span>
+        <span>{t("clients.notes.personalNumber")}</span>
         <input
           type="tel"
           value={personalNumber}
-          placeholder="e.g. +52 555 123 4567"
+          placeholder={t("clients.notes.personalNumberPlaceholder")}
           onChange={(event) => setPersonalNumber(event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>National ID number</span>
+        <span>{t("clients.notes.idNumber")}</span>
         <input
           type="text"
           value={idNumber}
-          placeholder="e.g. CURP / DNI / passport"
+          placeholder={t("clients.notes.idNumberPlaceholder")}
           onChange={(event) => setIdNumber(event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Focus (relation note)</span>
+        <span>{t("clients.notes.focus")}</span>
         <input
           type="text"
           value={relationDescription}
-          placeholder="e.g. Strength baseline"
+          placeholder={t("clients.notes.focusPlaceholder")}
           onChange={(event) => setRelationDescription(event.target.value)}
         />
       </label>
 
       <label className="field">
-        <span>Description</span>
+        <span>{t("clients.notes.description")}</span>
         <textarea
           rows={3}
           value={description}
-          placeholder="Goal, observations, training history..."
+          placeholder={t("clients.notes.descriptionPlaceholder")}
           onChange={(event) => setDescription(event.target.value)}
         />
       </label>
@@ -116,7 +118,7 @@ export function ClientNotesPanel({ accessToken, client, onSaved }: Props) {
           disabled={isSaving || !dirty}
           type="button"
         >
-          <Save size={16} /> {isSaving ? "Saving..." : "Save notes"}
+          <Save size={16} /> {isSaving ? t("clients.notes.saving") : t("clients.notes.save")}
         </button>
       </div>
       {feedback ? (

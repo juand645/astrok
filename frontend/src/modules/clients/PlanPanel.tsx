@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarPlus, CheckCircle2, Plus, Save, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   ExerciseEntry,
   PlanContent,
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
+  const { t } = useTranslation();
   const [content, setContent] = useState<PlanContent>(() => normalizeContent(plan.content));
   const [activeDay, setActiveDay] = useState<string>("");
   const [title, setTitle] = useState(plan.title);
@@ -125,7 +127,9 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
     const count = circuitos[circuitoIndex]?.exercises.length ?? 0;
     if (
       count > 0 &&
-      !window.confirm(`Delete Circuito ${circuitoIndex + 1} and its ${count} exercise(s)?`)
+      !window.confirm(
+        t("clients.plan.confirmDeleteCircuito", { number: circuitoIndex + 1, count }),
+      )
     ) {
       return;
     }
@@ -148,7 +152,10 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
     if (
       exerciseCount > 0 &&
       !window.confirm(
-        `Delete ${prettyDayLabel(dayKey)} and its ${exerciseCount} exercise(s)? You can still save this as a new version.`,
+        t("clients.plan.confirmDeleteDaySaveable", {
+          day: prettyDayLabel(dayKey, t),
+          count: exerciseCount,
+        }),
       )
     ) {
       return;
@@ -170,21 +177,17 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
       });
       onSaved(updated);
       setFeedbackKind("ok");
-      setFeedback("Plan approved.");
+      setFeedback(t("clients.plan.planApproved"));
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Could not approve plan.");
+      setFeedback(err instanceof Error ? err.message : t("clients.plan.errorApprove"));
     } finally {
       setIsApproving(false);
     }
   }
 
   async function handleDelete() {
-    if (
-      !window.confirm(
-        `Delete plan "${plan.title}"? Workout-session history will be preserved, but the plan won't appear in the list anymore.`,
-      )
-    ) {
+    if (!window.confirm(t("clients.plan.confirmDeletePlan", { title: plan.title }))) {
       return;
     }
     setIsDeleting(true);
@@ -193,7 +196,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
       onDeleted(plan.id);
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Could not delete plan.");
+      setFeedback(err instanceof Error ? err.message : t("clients.plan.errorDelete"));
       setIsDeleting(false);
     }
   }
@@ -203,7 +206,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
     const trimmedTitle = title.trim();
     if (trimmedTitle === "") {
       setFeedbackKind("error");
-      setFeedback("Title is required.");
+      setFeedback(t("clients.plan.titleRequired"));
       return;
     }
 
@@ -219,10 +222,10 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
       });
       onSaved(updated);
       setFeedbackKind("ok");
-      setFeedback("Saved as a new version.");
+      setFeedback(t("clients.plan.savedNewVersion"));
     } catch (currentError) {
       setFeedbackKind("error");
-      setFeedback(currentError instanceof Error ? currentError.message : "Save failed.");
+      setFeedback(currentError instanceof Error ? currentError.message : t("clients.plan.errorSave"));
     } finally {
       setIsSaving(false);
     }
@@ -238,7 +241,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
             type="text"
             className="plan-title-input"
             value={title}
-            placeholder="Plan title"
+            placeholder={t("clients.plan.titleInputPlaceholder")}
             onChange={(event) => setTitle(event.target.value)}
           />
           <span className={`status-pill ${statusClass(plan.status)}`}>{plan.status}</span>
@@ -248,17 +251,17 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
               className="secondary-button approve-button"
               onClick={handleApprove}
               disabled={isApproving || isDeleting}
-              title="Approve this plan"
+              title={t("clients.plan.approveTitle")}
             >
               <CheckCircle2 size={14} />
-              {isApproving ? "Approving…" : "Approve"}
+              {isApproving ? t("clients.plan.approving") : t("clients.plan.approve")}
             </button>
           ) : null}
           <button
             type="button"
             className="icon-button"
-            aria-label="Delete plan"
-            title="Delete plan"
+            aria-label={t("clients.plan.deletePlan")}
+            title={t("clients.plan.deletePlanTitle")}
             onClick={handleDelete}
             disabled={isDeleting}
           >
@@ -269,11 +272,11 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
       </div>
 
       <label className="field">
-        <span>Description</span>
+        <span>{t("clients.plan.description")}</span>
         <textarea
           rows={2}
           value={description}
-          placeholder="Short description of this plan"
+          placeholder={t("clients.plan.descriptionPlaceholder")}
           onChange={(event) => setDescription(event.target.value)}
         />
       </label>
@@ -289,7 +292,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
               className={`day-tab ${day === activeDay ? "active" : ""}`}
               onClick={() => setActiveDay(day)}
             >
-              {prettyDayLabel(day)}
+              {prettyDayLabel(day, t)}
             </button>
           ))}
         </div>
@@ -297,27 +300,27 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
           type="button"
           className="day-add-button"
           onClick={addDay}
-          title="Add day"
-          aria-label="Add day"
+          title={t("clients.plan.addDayTitle")}
+          aria-label={t("clients.plan.addDayTitle")}
         >
           <CalendarPlus size={14} />
-          <span>Add</span>
+          <span>{t("clients.plan.addDay")}</span>
         </button>
       </div>
 
       {dayKeys.length === 0 ? (
-        <p className="muted">No days yet. Add one to start prescribing exercises.</p>
+        <p className="muted">{t("clients.plan.noDays")}</p>
       ) : (
         <>
           {activeDay ? (
             <div className="plan-day-block">
               <div className="plan-day-header">
-                <h3>{prettyDayLabel(activeDay)}</h3>
+                <h3>{prettyDayLabel(activeDay, t)}</h3>
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label={`Delete ${prettyDayLabel(activeDay)}`}
-                  title={`Delete ${prettyDayLabel(activeDay)}`}
+                  aria-label={t("clients.plan.deleteDay", { day: prettyDayLabel(activeDay, t) })}
+                  title={t("clients.plan.deleteDay", { day: prettyDayLabel(activeDay, t) })}
                   onClick={() => removeDay(activeDay)}
                 >
                   <Trash2 size={14} />
@@ -327,10 +330,10 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
               {activeCircuitos.map((circuito, circuitoIndex) => (
                 <div className="circuito-block" key={circuitoIndex}>
                   <div className="circuito-header">
-                    <h4>Circuito {circuitoIndex + 1}</h4>
+                    <h4>{t("clients.plan.circuito", { number: circuitoIndex + 1 })}</h4>
                     <div className="circuito-header-actions">
                       <label className="circuito-series">
-                        <span>Series</span>
+                        <span>{t("clients.plan.series")}</span>
                         <input
                           type="number"
                           min={0}
@@ -343,8 +346,8 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                       <button
                         type="button"
                         className="icon-button"
-                        aria-label={`Delete Circuito ${circuitoIndex + 1}`}
-                        title={`Delete Circuito ${circuitoIndex + 1}`}
+                        aria-label={t("clients.plan.deleteCircuito", { number: circuitoIndex + 1 })}
+                        title={t("clients.plan.deleteCircuito", { number: circuitoIndex + 1 })}
                         onClick={() => removeCircuito(activeDay, circuitoIndex)}
                       >
                         <Trash2 size={14} />
@@ -356,21 +359,21 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                     <table className="detail-table">
                       <thead>
                         <tr>
-                          <th>Ejercicio</th>
-                          <th>Repeticiones</th>
-                          <th>Peso</th>
-                          <th>Media URL</th>
-                          <th aria-label="Actions" />
+                          <th>{t("clients.plan.ejercicio")}</th>
+                          <th>{t("clients.plan.repeticiones")}</th>
+                          <th>{t("clients.plan.peso")}</th>
+                          <th>{t("clients.plan.mediaUrl")}</th>
+                          <th aria-label={t("clients.plan.actions")} />
                         </tr>
                       </thead>
                       <tbody>
                         {circuito.exercises.map((exercise, exerciseIndex) => (
                           <tr key={exerciseIndex}>
-                            <td data-label="Ejercicio">
+                            <td data-label={t("clients.plan.ejercicio")}>
                               <input
                                 type="text"
                                 value={exercise.ejercicio}
-                                placeholder="Press de banca"
+                                placeholder={t("clients.plan.exercisePlaceholder")}
                                 onChange={(event) =>
                                   updateExercise(
                                     activeDay,
@@ -382,7 +385,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                                 }
                               />
                             </td>
-                            <td data-label="Repeticiones">
+                            <td data-label={t("clients.plan.repeticiones")}>
                               <input
                                 type="number"
                                 min={0}
@@ -398,11 +401,11 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                                 }
                               />
                             </td>
-                            <td data-label="Peso">
+                            <td data-label={t("clients.plan.peso")}>
                               <input
                                 type="text"
                                 value={exercise.peso}
-                                placeholder="70kg"
+                                placeholder={t("clients.plan.pesoPlaceholder")}
                                 onChange={(event) =>
                                   updateExercise(
                                     activeDay,
@@ -414,11 +417,11 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                                 }
                               />
                             </td>
-                            <td data-label="Media URL">
+                            <td data-label={t("clients.plan.mediaUrl")}>
                               <input
                                 type="text"
                                 value={exercise.media_url}
-                                placeholder="YouTube link, image, GIF, or .mp4"
+                                placeholder={t("clients.plan.mediaUrlPlaceholder")}
                                 onChange={(event) =>
                                   updateExercise(
                                     activeDay,
@@ -433,7 +436,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                             <td className="row-actions">
                               <button
                                 className="icon-button"
-                                aria-label="Remove exercise"
+                                aria-label={t("clients.plan.removeExercise")}
                                 onClick={() =>
                                   removeExercise(activeDay, circuitoIndex, exerciseIndex)
                                 }
@@ -447,7 +450,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                         {circuito.exercises.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="muted center">
-                              No exercises in this circuit yet.
+                              {t("clients.plan.noExercises")}
                             </td>
                           </tr>
                         ) : null}
@@ -461,7 +464,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                       onClick={() => addExercise(activeDay, circuitoIndex)}
                       type="button"
                     >
-                      <Plus size={16} /> Add exercise
+                      <Plus size={16} /> {t("clients.plan.addExercise")}
                     </button>
                   </div>
                 </div>
@@ -473,7 +476,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
                   onClick={() => addCircuito(activeDay)}
                   type="button"
                 >
-                  <Plus size={16} /> Add circuito
+                  <Plus size={16} /> {t("clients.plan.addCircuito")}
                 </button>
               </div>
             </div>
@@ -483,7 +486,7 @@ export function PlanPanel({ accessToken, plan, onSaved, onDeleted }: Props) {
 
       <div className="panel-actions">
         <button className="primary-button" onClick={save} disabled={isSaving} type="button">
-          <Save size={16} /> {isSaving ? "Saving..." : "Save as new version"}
+          <Save size={16} /> {isSaving ? t("clients.plan.saving") : t("clients.plan.save")}
         </button>
       </div>
       {feedback ? (

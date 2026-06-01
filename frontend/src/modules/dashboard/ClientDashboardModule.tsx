@@ -8,6 +8,8 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   AuthUser,
   ParQAssessment,
@@ -32,6 +34,7 @@ export function ClientDashboardModule({
   onNavigateToSessions,
   onNavigateToHealth,
 }: Props) {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [parqList, setParqList] = useState<ParQAssessment[]>([]);
@@ -76,7 +79,7 @@ export function ClientDashboardModule({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load dashboard.");
+          setError(err instanceof Error ? err.message : t("dashboard.client.errorLoad"));
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -87,7 +90,7 @@ export function ClientDashboardModule({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, currentUser.id]);
+  }, [accessToken, currentUser.id, t]);
 
   const firstName = (currentUser.full_name || currentUser.username || "").split(" ")[0];
   const activePlan = plans[0] ?? null;
@@ -129,20 +132,24 @@ export function ClientDashboardModule({
 
   if (isLoading) {
     return (
-      <section className="module-stack" aria-label="Dashboard">
-        <p className="muted">Loading…</p>
+      <section className="module-stack" aria-label={t("dashboard.client.ariaLabel")}>
+        <p className="muted">{t("dashboard.client.loading")}</p>
       </section>
     );
   }
 
   return (
-    <section className="module-stack" aria-label="Dashboard">
+    <section className="module-stack" aria-label={t("dashboard.client.ariaLabel")}>
       <header className="dash-greeting">
-        <h1>¡Hola, {firstName || "atleta"}!</h1>
+        <h1>
+          {t("dashboard.client.greeting", {
+            name: firstName || t("dashboard.client.greetingFallbackName"),
+          })}
+        </h1>
         {activePlan ? (
-          <p className="muted">Sigues con {activePlan.title}.</p>
+          <p className="muted">{t("dashboard.client.stillOnPlan", { plan: activePlan.title })}</p>
         ) : (
-          <p className="muted">Tu profesional pronto te asignará un plan.</p>
+          <p className="muted">{t("dashboard.client.noPlanYet")}</p>
         )}
       </header>
 
@@ -185,16 +192,15 @@ function NextWorkoutCard({
   allDoneThisWeek: boolean;
   onLogSession: () => void;
 }) {
+  const { t } = useTranslation();
   if (!activePlan) {
     return (
       <article className="dash-card">
         <header className="dash-card-header">
           <ClipboardCheck size={18} />
-          <span>Próxima sesión</span>
+          <span>{t("dashboard.client.nextWorkoutHeading")}</span>
         </header>
-        <p className="muted">
-          Aún no tienes un plan activo. Cuando tu profesional te asigne uno, aparecerá aquí.
-        </p>
+        <p className="muted">{t("dashboard.client.nextWorkoutNoPlan")}</p>
       </article>
     );
   }
@@ -204,12 +210,9 @@ function NextWorkoutCard({
       <article className="dash-card dash-card-done">
         <header className="dash-card-header">
           <CheckCircle2 size={18} />
-          <span>¡Semana completada!</span>
+          <span>{t("dashboard.client.weekDoneHeading")}</span>
         </header>
-        <p>
-          Felicidades — terminaste todos los días de esta semana. Descansa o consulta con tu
-          profesional para próximos pasos.
-        </p>
+        <p>{t("dashboard.client.weekDoneBody")}</p>
       </article>
     );
   }
@@ -219,9 +222,9 @@ function NextWorkoutCard({
       <article className="dash-card">
         <header className="dash-card-header">
           <ClipboardCheck size={18} />
-          <span>Próxima sesión</span>
+          <span>{t("dashboard.client.nextWorkoutHeading")}</span>
         </header>
-        <p className="muted">Tu plan no tiene días definidos todavía.</p>
+        <p className="muted">{t("dashboard.client.noDaysDefined")}</p>
       </article>
     );
   }
@@ -237,16 +240,16 @@ function NextWorkoutCard({
     <article className="dash-card">
       <header className="dash-card-header">
         <ClipboardCheck size={18} />
-        <span>Próxima sesión</span>
+        <span>{t("dashboard.client.nextWorkoutHeading")}</span>
       </header>
       <div>
-        <strong className="dash-card-title">{prettyDayLabel(nextDayKey)}</strong>
+        <strong className="dash-card-title">{prettyDayLabel(nextDayKey, t)}</strong>
         {preview ? <p className="muted">{preview}{exercises.length > 3 ? "…" : ""}</p> : null}
-        <p className="muted">{exercises.length} ejercicio(s)</p>
+        <p className="muted">{t("dashboard.client.exerciseCount", { count: exercises.length })}</p>
       </div>
       <div className="panel-actions">
         <button type="button" className="primary-button" onClick={onLogSession}>
-          <Send size={16} /> Registrar sesión
+          <Send size={16} /> {t("dashboard.client.logSession")}
         </button>
       </div>
     </article>
@@ -262,16 +265,17 @@ function ThisWeekCard({
   completedThisWeekByDay: Set<string>;
   activePlan: PlanSummary | null;
 }) {
+  const { t } = useTranslation();
   return (
     <article className="dash-card">
       <header className="dash-card-header">
         <Calendar size={18} />
-        <span>Esta semana</span>
+        <span>{t("dashboard.client.thisWeekHeading")}</span>
       </header>
       {!activePlan ? (
-        <p className="muted">Empezarás a llenar este calendario cuando tengas un plan.</p>
+        <p className="muted">{t("dashboard.client.thisWeekNoPlan")}</p>
       ) : dayKeys.length === 0 ? (
-        <p className="muted">Aún no hay días definidos en tu plan.</p>
+        <p className="muted">{t("dashboard.client.thisWeekEmpty")}</p>
       ) : (
         <ul className="dash-week-list">
           {dayKeys.map((day) => {
@@ -279,7 +283,7 @@ function ThisWeekCard({
             return (
               <li key={day} className={`dash-week-pill ${isDone ? "is-done" : ""}`}>
                 {isDone ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                <span>{prettyDayLabel(day)}</span>
+                <span>{prettyDayLabel(day, t)}</span>
               </li>
             );
           })}
@@ -300,20 +304,18 @@ function CoachCard({
   hasPlan: boolean;
   onNavigateToHealth: () => void;
 }) {
+  const { t } = useTranslation();
   if (pendingParq) {
     return (
       <article className="dash-card dash-card-attention">
         <header className="dash-card-header">
           <HeartPulse size={18} />
-          <span>Acción requerida</span>
+          <span>{t("dashboard.client.actionRequiredHeading")}</span>
         </header>
-        <p>
-          Tu profesional habilitó un PAR-Q. Por favor completa el cuestionario antes de
-          continuar tu entrenamiento.
-        </p>
+        <p>{t("dashboard.client.parqPendingBody")}</p>
         <div className="panel-actions">
           <button type="button" className="primary-button" onClick={onNavigateToHealth}>
-            Completar PAR-Q
+            {t("dashboard.client.completeParq")}
           </button>
         </div>
       </article>
@@ -325,7 +327,7 @@ function CoachCard({
       <article className="dash-card dash-card-coach">
         <header className="dash-card-header">
           <Sparkles size={16} />
-          <span>Tu coach</span>
+          <span>{t("dashboard.client.yourCoachHeading")}</span>
         </header>
         <p>{latestCompletedSession.ai_response}</p>
       </article>
@@ -337,12 +339,9 @@ function CoachCard({
       <article className="dash-card">
         <header className="dash-card-header">
           <Sparkles size={16} />
-          <span>Bienvenida</span>
+          <span>{t("dashboard.client.welcomeHeading")}</span>
         </header>
-        <p className="muted">
-          Cuando tengas un plan y completes tu primera sesión, tu coach personalizado
-          aparecerá aquí con observaciones basadas en tu progreso.
-        </p>
+        <p className="muted">{t("dashboard.client.welcomeBody")}</p>
       </article>
     );
   }
@@ -351,12 +350,9 @@ function CoachCard({
     <article className="dash-card">
       <header className="dash-card-header">
         <Sparkles size={16} />
-        <span>Tu coach</span>
+        <span>{t("dashboard.client.yourCoachHeading")}</span>
       </header>
-      <p className="muted">
-        Completa una sesión esta semana y recibirás un mensaje personalizado con
-        observaciones sobre tu progreso.
-      </p>
+      <p className="muted">{t("dashboard.client.coachWaitingBody")}</p>
     </article>
   );
 }
@@ -378,9 +374,9 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
-function prettyDayLabel(dayKey: string): string {
-  if (!dayKey) return "Día";
+function prettyDayLabel(dayKey: string, t: TFunction): string {
+  if (!dayKey) return t("dashboard.client.dayLabel", { number: "" }).trim();
   const match = dayKey.match(/^dia[_-]?(\d+)$/i);
-  if (match) return `Día ${match[1]}`;
+  if (match) return t("dashboard.client.dayLabel", { number: match[1] });
   return dayKey;
 }

@@ -11,6 +11,7 @@ import {
   Search,
   UserCircle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Client,
   UserSummary,
@@ -32,6 +33,7 @@ export function ClientsModule({
   onSelectClient,
   onCreateClient,
 }: ClientsModuleProps) {
+  const { t, i18n } = useTranslation();
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -53,7 +55,9 @@ export function ClientsModule({
       })
       .catch((currentError) => {
         if (!cancelled) {
-          setError(currentError instanceof Error ? currentError.message : "Could not load clients.");
+          setError(
+            currentError instanceof Error ? currentError.message : t("clients.list.errorLoad"),
+          );
         }
       })
       .finally(() => {
@@ -65,7 +69,7 @@ export function ClientsModule({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, reloadKey, includeInactive]);
+  }, [accessToken, reloadKey, includeInactive, t]);
 
   const filtered = clients.filter((client) => {
     const term = search.trim().toLowerCase();
@@ -80,25 +84,25 @@ export function ClientsModule({
   });
 
   return (
-    <section className="module-stack" aria-label="Clients module">
+    <section className="module-stack" aria-label={t("clients.list.ariaLabel")}>
       <header className="module-header">
         <div>
-          <h1>Clients</h1>
-          <p>Members assigned to you. {clients.length} total.</p>
+          <h1>{t("clients.list.title")}</h1>
+          <p>{t("clients.list.subtitle", { count: clients.length })}</p>
         </div>
         {canCreate ? (
           <button className="primary-button" onClick={onCreateClient} type="button">
             <Plus size={18} />
-            New client
+            {t("clients.list.new")}
           </button>
         ) : null}
       </header>
 
-      <section className="client-toolbar" aria-label="Client filters">
+      <section className="client-toolbar" aria-label={t("clients.list.filtersLabel")}>
         <label className="search-field">
           <Search size={18} />
           <input
-            placeholder="Search by name, email, or focus"
+            placeholder={t("clients.list.searchPlaceholder")}
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -110,16 +114,16 @@ export function ClientsModule({
             checked={includeInactive}
             onChange={(event) => setIncludeInactive(event.target.checked)}
           />
-          Show inactive
+          {t("clients.list.showInactive")}
         </label>
       </section>
 
       {error ? <p className="error-text">{error}</p> : null}
 
       {isLoading ? (
-        <p>Loading clients...</p>
+        <p>{t("clients.list.loading")}</p>
       ) : filtered.length === 0 ? (
-        <p>{clients.length === 0 ? "No clients are assigned to you yet." : "No clients match your search."}</p>
+        <p>{clients.length === 0 ? t("clients.list.empty") : t("clients.list.noMatch")}</p>
       ) : (
         <section className="clients-grid">
           {filtered.map((client) => (
@@ -127,10 +131,10 @@ export function ClientsModule({
               className={`client-card ${client.active ? "" : "is-inactive"}`}
               key={client.id}
             >
-              <div className="client-card-trainer" title="Assigned trainer">
+              <div className="client-card-trainer" title={t("clients.list.assignedTrainerTitle")}>
                 <UserCircle size={14} />
-                <span>Trainer</span>
-                <strong>{client.professional_name ?? "Unassigned"}</strong>
+                <span>{t("clients.list.trainerLabel")}</span>
+                <strong>{client.professional_name ?? t("clients.list.unassigned")}</strong>
               </div>
 
               <div className="client-card-header">
@@ -142,7 +146,7 @@ export function ClientsModule({
                   <span>@{client.username}</span>
                 </div>
                 {!client.active ? (
-                  <span className="status-pill status-inactive">Inactive</span>
+                  <span className="status-pill status-inactive">{t("clients.list.inactive")}</span>
                 ) : null}
               </div>
 
@@ -172,14 +176,16 @@ export function ClientsModule({
                 {client.birth_date ? (
                   <span>
                     <CalendarDays size={16} />
-                    {formatBirthDate(client.birth_date)}
+                    {formatBirthDate(client.birth_date, i18n.language, (age) =>
+                      t("clients.list.age", { age }),
+                    )}
                   </span>
                 ) : null}
               </div>
 
               {client.relation_description ? (
                 <div className="client-card-footer">
-                  <span>Focus</span>
+                  <span>{t("clients.list.focus")}</span>
                   <strong>{client.relation_description}</strong>
                 </div>
               ) : null}
@@ -190,14 +196,14 @@ export function ClientsModule({
                   onClick={() => setTransferTarget(client)}
                   type="button"
                 >
-                  <ArrowRightLeft size={14} /> Transfer
+                  <ArrowRightLeft size={14} /> {t("clients.list.transfer")}
                 </button>
                 <button
                   className="secondary-button view-detail-button"
                   onClick={() => onSelectClient(client.id)}
                   type="button"
                 >
-                  View detail <ChevronRight size={16} />
+                  {t("clients.list.viewDetail")} <ChevronRight size={16} />
                 </button>
               </div>
             </article>
@@ -231,6 +237,7 @@ function TransferClientModal({
   onCancel: () => void;
   onTransferred: () => void;
 }) {
+  const { t } = useTranslation();
   const [professionals, setProfessionals] = useState<UserSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [note, setNote] = useState("");
@@ -249,13 +256,13 @@ function TransferClientModal({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load trainers.");
+          setError(err instanceof Error ? err.message : t("clients.transfer.errorLoad"));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [accessToken, client.professional_id]);
+  }, [accessToken, client.professional_id, t]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -269,7 +276,7 @@ function TransferClientModal({
       });
       onTransferred();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Transfer failed.");
+      setError(err instanceof Error ? err.message : t("clients.transfer.errorTransfer"));
     } finally {
       setIsSaving(false);
     }
@@ -282,18 +289,15 @@ function TransferClientModal({
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <h2>Transfer {client.full_name}</h2>
-        <p className="muted">
-          Reassign this client to another trainer. You'll lose access to their profile once the
-          transfer is saved.
-        </p>
+        <h2>{t("clients.transfer.title", { name: client.full_name })}</h2>
+        <p className="muted">{t("clients.transfer.intro")}</p>
 
         <label className="field">
-          <span>New trainer</span>
+          <span>{t("clients.transfer.newTrainer")}</span>
           {professionals === null ? (
-            <p className="muted">Loading trainers…</p>
+            <p className="muted">{t("clients.transfer.loadingTrainers")}</p>
           ) : professionals.length === 0 ? (
-            <p className="muted">No other trainers available to receive this client.</p>
+            <p className="muted">{t("clients.transfer.noOtherTrainers")}</p>
           ) : (
             <select
               value={selectedId ?? ""}
@@ -309,11 +313,11 @@ function TransferClientModal({
         </label>
 
         <label className="field">
-          <span>Note (optional)</span>
+          <span>{t("clients.transfer.note")}</span>
           <textarea
             rows={2}
             value={note}
-            placeholder="e.g. Carlos OOO until 2026-07-01"
+            placeholder={t("clients.transfer.notePlaceholder")}
             onChange={(event) => setNote(event.target.value)}
           />
         </label>
@@ -322,14 +326,14 @@ function TransferClientModal({
 
         <div className="modal-actions">
           <button type="button" className="ghost-button" onClick={onCancel} disabled={isSaving}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             className="primary-button"
             disabled={isSaving || selectedId === null}
           >
-            {isSaving ? "Transferring…" : "Confirm transfer"}
+            {isSaving ? t("clients.transfer.transferring") : t("clients.transfer.submit")}
           </button>
         </div>
       </form>
@@ -347,11 +351,11 @@ function getInitials(fullName: string) {
     .toUpperCase();
 }
 
-function formatBirthDate(isoDate: string) {
+function formatBirthDate(isoDate: string, locale: string, ageLabel: (age: number) => string) {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) {
     return isoDate;
   }
   const age = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  return `${date.toLocaleDateString()} (age ${age})`;
+  return `${date.toLocaleDateString(locale)} (${ageLabel(age)})`;
 }

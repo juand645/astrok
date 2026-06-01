@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Dumbbell, LogIn } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AuthUser, login } from "../../api";
 
 type LoginModuleProps = {
@@ -7,6 +8,7 @@ type LoginModuleProps = {
 };
 
 export function LoginModule({ onLogin }: LoginModuleProps) {
+  const { t } = useTranslation();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,9 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
       const session = await login(identifier, password);
       onLogin(session.access_token, session.user);
     } catch (currentError) {
-      setError(currentError instanceof Error ? currentError.message : "Could not sign in.");
+      setError(
+        currentError instanceof Error ? currentError.message : t("login.errorFallback"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -36,18 +40,18 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
           </div>
           <div>
             <strong>Gym AI</strong>
-            <span>Instructor console</span>
+            <span>{t("login.brandTagline")}</span>
           </div>
         </div>
 
         <div className="login-copy">
-          <h1>Welcome back</h1>
-          <p>Sign in with your gym username or email to manage appointments and routines.</p>
+          <h1>{t("login.welcome")}</h1>
+          <p>{t("login.intro")}</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>Username or email</span>
+            <span>{t("login.identifierLabel")}</span>
             <input
               autoComplete="username"
               value={identifier}
@@ -57,7 +61,7 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
           </label>
 
           <label className="field">
-            <span>Password</span>
+            <span>{t("login.passwordLabel")}</span>
             <input
               autoComplete="current-password"
               type="password"
@@ -71,7 +75,7 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
 
           <button className="primary-button full-width" disabled={isLoading} type="submit">
             <LogIn size={18} />
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isLoading ? t("login.signingIn") : t("login.signIn")}
           </button>
         </form>
       </section>

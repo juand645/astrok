@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { TrainerCreatePayload, createTrainer } from "../../api";
 
 type NewTrainerModuleProps = {
@@ -9,6 +10,7 @@ type NewTrainerModuleProps = {
 };
 
 export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTrainerModuleProps) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -25,7 +27,7 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
     setError(null);
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("trainers.new.errorPasswordShort"));
       return;
     }
 
@@ -45,38 +47,38 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
       await createTrainer(accessToken, payload);
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create trainer.");
+      setError(err instanceof Error ? err.message : t("trainers.new.errorCreate"));
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <section className="module-stack" aria-label="New trainer">
+    <section className="module-stack" aria-label={t("trainers.new.ariaLabel")}>
       <header className="module-header">
         <button type="button" className="back-button secondary-button" onClick={onCancel}>
-          <ArrowLeft size={16} /> Back to trainers
+          <ArrowLeft size={16} /> {t("trainers.new.back")}
         </button>
       </header>
 
       <article className="panel">
         <div className="panel-header">
           <div>
-            <h1>New trainer</h1>
-            <p>Create a trainer account and a temporary password they can change later.</p>
+            <h1>{t("trainers.new.title")}</h1>
+            <p>{t("trainers.new.subtitle")}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <section className="panel">
             <div className="panel-header">
-              <h2>Basic info</h2>
-              <span>Account credentials and identity</span>
+              <h2>{t("trainers.new.basicInfo")}</h2>
+              <span>{t("trainers.new.basicInfoHint")}</span>
             </div>
 
             <div className="form-grid">
               <label className="field">
-                <span>Full name *</span>
+                <span>{t("trainers.new.fullName")}</span>
                 <input
                   type="text"
                   value={fullName}
@@ -85,7 +87,7 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
                 />
               </label>
               <label className="field">
-                <span>Email *</span>
+                <span>{t("trainers.new.email")}</span>
                 <input
                   type="email"
                   value={email}
@@ -94,7 +96,7 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
                 />
               </label>
               <label className="field">
-                <span>Username *</span>
+                <span>{t("trainers.new.username")}</span>
                 <input
                   type="text"
                   value={username}
@@ -103,7 +105,7 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
                 />
               </label>
               <label className="field">
-                <span>Temporary password * (min 8 chars)</span>
+                <span>{t("trainers.new.password")}</span>
                 <input
                   type="text"
                   value={password}
@@ -113,7 +115,7 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
                 />
               </label>
               <label className="field">
-                <span>Birth date</span>
+                <span>{t("trainers.new.birthDate")}</span>
                 <input
                   type="date"
                   value={birthDate}
@@ -121,31 +123,31 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
                 />
               </label>
               <label className="field">
-                <span>Personal number</span>
+                <span>{t("trainers.new.personalNumber")}</span>
                 <input
                   type="tel"
                   value={personalNumber}
-                  placeholder="e.g. +52 555 123 4567"
+                  placeholder={t("trainers.new.personalNumberPlaceholder")}
                   onChange={(event) => setPersonalNumber(event.target.value)}
                 />
               </label>
               <label className="field">
-                <span>National ID number</span>
+                <span>{t("trainers.new.idNumber")}</span>
                 <input
                   type="text"
                   value={idNumber}
-                  placeholder="e.g. CURP / DNI / passport"
+                  placeholder={t("trainers.new.idNumberPlaceholder")}
                   onChange={(event) => setIdNumber(event.target.value)}
                 />
               </label>
             </div>
 
             <label className="field">
-              <span>Description</span>
+              <span>{t("trainers.new.description")}</span>
               <textarea
                 rows={3}
                 value={description}
-                placeholder="Specialization, years of experience, anything that helps identify them."
+                placeholder={t("trainers.new.descriptionPlaceholder")}
                 onChange={(event) => setDescription(event.target.value)}
               />
             </label>
@@ -155,10 +157,10 @@ export function NewTrainerModule({ accessToken, onCancel, onCreated }: NewTraine
 
           <div className="panel-actions">
             <button className="secondary-button" type="button" onClick={onCancel}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button className="primary-button" type="submit" disabled={isSaving}>
-              <Save size={16} /> {isSaving ? "Creating..." : "Create trainer"}
+              <Save size={16} /> {isSaving ? t("trainers.new.creating") : t("trainers.new.submit")}
             </button>
           </div>
         </form>

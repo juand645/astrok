@@ -7,6 +7,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Appointment,
   AppointmentCreatePayload,
@@ -31,7 +32,24 @@ type Props = {
 
 const OPEN_HOUR = 5;
 const CLOSE_HOUR = 19;
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_KEYS = [
+  "days.mon",
+  "days.tue",
+  "days.wed",
+  "days.thu",
+  "days.fri",
+  "days.sat",
+  "days.sun",
+] as const;
+const DAY_SHORT_KEYS = [
+  "days.monShort",
+  "days.tueShort",
+  "days.wedShort",
+  "days.thuShort",
+  "days.friShort",
+  "days.satShort",
+  "days.sunShort",
+] as const;
 
 type SlotState = "available" | "mine" | "busy" | "past" | "ooo";
 
@@ -45,22 +63,20 @@ type SlotInfo = {
 type DragAnchor = { d: number; h: number; mode: "add" | "remove" };
 
 export function AppointmentsModule({ accessToken, currentUser }: Props) {
+  const { t } = useTranslation();
   const isPureClient =
     currentUser.roles.length > 0 && currentUser.roles.every((role) => role === "client");
 
   if (isPureClient) {
     if (!currentUser.professional_id) {
       return (
-        <section className="module-stack" aria-label="Appointments">
+        <section className="module-stack" aria-label={t("appointments.title")}>
           <header className="module-header">
             <div>
-              <h1>Appointments</h1>
+              <h1>{t("appointments.title")}</h1>
             </div>
           </header>
-          <p className="muted">
-            You don&apos;t have an assigned professional yet. Once a trainer is assigned to you,
-            you&apos;ll be able to book here.
-          </p>
+          <p className="muted">{t("appointments.clientUnassigned")}</p>
         </section>
       );
     }
@@ -86,6 +102,7 @@ function ClientView({
   clientId: number;
   professionalId: number;
 }) {
+  const { t } = useTranslation();
   const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
   const [busy, setBusy] = useState<AvailabilitySlot[]>([]);
   const [mine, setMine] = useState<Appointment[]>([]);
@@ -113,7 +130,7 @@ function ClientView({
       setBusy(busyList);
       setMine(mineList);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load appointments.");
+      setError(err instanceof Error ? err.message : t("appointments.errorLoad"));
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +157,7 @@ function ClientView({
       setSelectedSlot(null);
       await loadWeek();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not book.");
+      setError(err instanceof Error ? err.message : t("appointments.errorBook"));
     }
   }
 
@@ -151,23 +168,23 @@ function ClientView({
       setPendingCancel(null);
       await loadWeek();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not cancel.");
+      setError(err instanceof Error ? err.message : t("appointments.errorCancel"));
     }
   }
 
   return (
-    <section className="module-stack" aria-label="Appointments">
+    <section className="module-stack" aria-label={t("appointments.title")}>
       <header className="module-header">
         <div>
-          <h1>Appointments</h1>
-          <p>Book a slot with your trainer. One-hour sessions, 5 AM – 7 PM.</p>
+          <h1>{t("appointments.title")}</h1>
+          <p>{t("appointments.clientSubtitle")}</p>
         </div>
       </header>
 
       <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
 
       {error ? <p className="error-text">{error}</p> : null}
-      {isLoading ? <p className="muted">Loading…</p> : null}
+      {isLoading ? <p className="muted">{t("appointments.loading")}</p> : null}
 
       <WeekGrid
         weekStart={weekStart}
@@ -204,6 +221,7 @@ function TrainerView({
   accessToken: string;
   currentUser: AuthUser;
 }) {
+  const { t } = useTranslation();
   const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -243,7 +261,7 @@ function TrainerView({
       setOoo(oooList);
       if (clients.length === 0) setClients(clientList);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load appointments.");
+      setError(err instanceof Error ? err.message : t("appointments.errorLoad"));
     } finally {
       setIsLoading(false);
     }
@@ -332,7 +350,7 @@ function TrainerView({
       setIsSelectMode(false);
       await loadWeek();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save OOO selection.");
+      setError(err instanceof Error ? err.message : t("appointments.errorSaveOoo"));
     } finally {
       setIsSavingOoo(false);
     }
@@ -365,7 +383,7 @@ function TrainerView({
       setSelectedSlot(null);
       await loadWeek();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not book.");
+      setError(err instanceof Error ? err.message : t("appointments.errorBook"));
     }
   }
 
@@ -376,7 +394,7 @@ function TrainerView({
       setPendingCancel(null);
       await loadWeek();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not cancel.");
+      setError(err instanceof Error ? err.message : t("appointments.errorCancel"));
     }
   }
 
@@ -387,19 +405,19 @@ function TrainerView({
       setPendingOooRemove(null);
       await loadWeek();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove OOO.");
+      setError(err instanceof Error ? err.message : t("appointments.errorRemoveOoo"));
     }
   }
 
   return (
-    <section className="module-stack" aria-label="Appointments">
+    <section className="module-stack" aria-label={t("appointments.title")}>
       <header className="module-header">
         <div>
-          <h1>Appointments</h1>
+          <h1>{t("appointments.title")}</h1>
           <p>
             {isSelectMode
-              ? "Select mode — tap any open slot to mark it OOO, then save."
-              : "Your week. Click an open slot to book a client; click a booked or OOO slot to manage it."}
+              ? t("appointments.selectModeHint")
+              : t("appointments.trainerSubtitle")}
           </p>
         </div>
         <div className="appointments-actions">
@@ -411,7 +429,7 @@ function TrainerView({
                 onClick={toggleSelectMode}
                 disabled={isSavingOoo}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -421,8 +439,8 @@ function TrainerView({
               >
                 <Save size={16} />
                 {isSavingOoo
-                  ? "Saving…"
-                  : `Save OOO (${selectedKeys.size})`}
+                  ? t("appointments.savingOoo")
+                  : t("appointments.saveOoo", { count: selectedKeys.size })}
               </button>
             </>
           ) : (
@@ -431,7 +449,7 @@ function TrainerView({
               className="secondary-button"
               onClick={toggleSelectMode}
             >
-              <Ban size={16} /> Mark unavailable
+              <Ban size={16} /> {t("appointments.markUnavailable")}
             </button>
           )}
         </div>
@@ -440,7 +458,7 @@ function TrainerView({
       <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
 
       {error ? <p className="error-text">{error}</p> : null}
-      {isLoading ? <p className="muted">Loading…</p> : null}
+      {isLoading ? <p className="muted">{t("appointments.loading")}</p> : null}
 
       <div className="appointments-layout">
         <WeekSidebar weekStart={weekStart} onJump={setWeekStart} />
@@ -493,12 +511,13 @@ function WeekNavigator({
   weekStart: Date;
   onChange: (next: Date) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const currentWeek = startOfIsoWeek(new Date());
   const canGoBack = weekStart > currentWeek;
 
   const end = addDays(weekStart, 6);
-  const label = `${formatShortDate(weekStart)} – ${formatShortDate(end)}`;
-  const todayLabel = new Date().toLocaleDateString(undefined, {
+  const label = `${formatShortDate(weekStart, i18n.language)} – ${formatShortDate(end, i18n.language)}`;
+  const todayLabel = new Date().toLocaleDateString(i18n.language, {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -506,14 +525,14 @@ function WeekNavigator({
 
   return (
     <div className="week-nav">
-      <span className="week-nav-today">Today · {todayLabel}</span>
+      <span className="week-nav-today">{t("appointments.today")} · {todayLabel}</span>
       <div className="week-nav-controls">
         <button
           type="button"
           className="icon-button"
           onClick={() => canGoBack && onChange(addDays(weekStart, -7))}
           disabled={!canGoBack}
-          aria-label="Previous week"
+          aria-label={t("appointments.previousWeek")}
         >
           <ChevronLeft size={18} />
         </button>
@@ -522,7 +541,7 @@ function WeekNavigator({
           type="button"
           className="icon-button"
           onClick={() => onChange(addDays(weekStart, 7))}
-          aria-label="Next week"
+          aria-label={t("appointments.nextWeek")}
         >
           <ChevronRight size={18} />
         </button>
@@ -549,6 +568,7 @@ function WeekGrid({
   onSlotPointerDown?: (d: number, h: number, key: string) => void;
   onSlotPointerEnter?: (d: number, h: number) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const hours = useMemo(() => {
     const out: number[] = [];
     for (let h = OPEN_HOUR; h <= CLOSE_HOUR - 1; h++) out.push(h);
@@ -564,11 +584,11 @@ function WeekGrid({
       <table className="week-grid">
         <thead>
           <tr>
-            <th aria-label="Hour" />
+            <th aria-label={t("appointments.hour")} />
             {days.map((day, i) => (
               <th key={i}>
                 <div className="day-head">
-                  <span>{DAY_LABELS[i]}</span>
+                  <span>{t(DAY_KEYS[i])}</span>
                   <strong>{day.getDate()}</strong>
                 </div>
               </th>
@@ -579,7 +599,7 @@ function WeekGrid({
           {hours.map((hour) => (
             <tr key={hour}>
               <th scope="row" className="hour-label">
-                {formatHour(hour)}
+                {formatHour(hour, i18n.language)}
               </th>
               {days.map((day, dayIndex) => {
                 const slotKey = `${dayIndex}-${hour}`;
@@ -619,14 +639,14 @@ function WeekGrid({
                           : undefined
                       }
                       disabled={disabled}
-                      aria-label={`${formatShortDate(day)} ${formatHour(hour)} — ${info.state}`}
+                      aria-label={`${formatShortDate(day, i18n.language)} ${formatHour(hour, i18n.language)} — ${info.state}`}
                     >
                       {info.state === "mine" && info.appointment ? (
-                        <span className="slot-label">Booked</span>
+                        <span className="slot-label">{t("appointments.slotBooked")}</span>
                       ) : info.state === "busy" ? (
-                        <span className="slot-label">Booked</span>
+                        <span className="slot-label">{t("appointments.slotBooked")}</span>
                       ) : info.state === "ooo" ? (
-                        <span className="slot-label">OOO</span>
+                        <span className="slot-label">{t("appointments.slotOoo")}</span>
                       ) : null}
                     </button>
                   </td>
@@ -649,6 +669,7 @@ function BookDialog({
   onConfirm: (focus: string, notes: string) => void;
   onCancel: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [focus, setFocus] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -666,28 +687,28 @@ function BookDialog({
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
-          <h2>Book this slot</h2>
+          <h2>{t("appointments.book.clientTitle")}</h2>
           <button
             type="button"
             className="icon-button"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X size={16} />
           </button>
         </div>
-        <p className="muted">{formatLongDateTime(date)}</p>
+        <p className="muted">{formatLongDateTime(date, i18n.language)}</p>
         <label className="field">
-          <span>Focus (optional)</span>
+          <span>{t("appointments.book.focus")}</span>
           <input
             type="text"
             value={focus}
-            placeholder="e.g. Strength"
+            placeholder={t("appointments.book.focusPlaceholder")}
             onChange={(e) => setFocus(e.target.value)}
           />
         </label>
         <label className="field">
-          <span>Notes (optional)</span>
+          <span>{t("appointments.book.notes")}</span>
           <textarea
             rows={2}
             value={notes}
@@ -696,7 +717,7 @@ function BookDialog({
         </label>
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -704,7 +725,7 @@ function BookDialog({
             onClick={handleSubmit}
             disabled={submitting}
           >
-            <Save size={16} /> {submitting ? "Booking…" : "Book"}
+            <Save size={16} /> {submitting ? t("appointments.book.submitting") : t("appointments.book.submit")}
           </button>
         </div>
       </div>
@@ -723,6 +744,7 @@ function TrainerBookDialog({
   onConfirm: (clientId: number, focus: string, notes: string) => void;
   onCancel: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [clientId, setClientId] = useState<number | null>(clients[0]?.id ?? null);
   const [clientSearch, setClientSearch] = useState("");
   const [focus, setFocus] = useState("");
@@ -758,39 +780,43 @@ function TrainerBookDialog({
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
-          <h2>Book a client</h2>
+          <h2>{t("appointments.book.trainerTitle")}</h2>
           <button
             type="button"
             className="icon-button"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X size={16} />
           </button>
         </div>
-        <p className="muted">{formatLongDateTime(date)}</p>
+        <p className="muted">{formatLongDateTime(date, i18n.language)}</p>
         {clients.length === 0 ? (
-          <p className="error-text">You don&apos;t have any clients assigned.</p>
+          <p className="error-text">{t("appointments.book.noClients")}</p>
         ) : (
           <label className="field">
-            <span>Client</span>
+            <span>{t("appointments.book.clientLabel")}</span>
             <div className="search-field">
               <Search size={16} />
               <input
                 type="search"
                 value={clientSearch}
-                placeholder="Search by name, username, or email"
+                placeholder={t("appointments.book.searchPlaceholder")}
                 onChange={(e) => setClientSearch(e.target.value)}
               />
             </div>
             {selectedHiddenByFilter && selectedClient ? (
               <p className="muted picker-selected">
-                Selected: <strong>{selectedClient.full_name}</strong>
+                {t("appointments.book.selectedPrefix")} <strong>{selectedClient.full_name}</strong>
               </p>
             ) : null}
-            <div className="client-picker-list" role="listbox" aria-label="Choose a client">
+            <div
+              className="client-picker-list"
+              role="listbox"
+              aria-label={t("appointments.book.chooseClient")}
+            >
               {filteredClients.length === 0 ? (
-                <p className="muted center">No clients match your search.</p>
+                <p className="muted center">{t("appointments.book.noMatch")}</p>
               ) : (
                 filteredClients.map((c) => (
                   <button
@@ -810,7 +836,7 @@ function TrainerBookDialog({
           </label>
         )}
         <label className="field">
-          <span>Focus (optional)</span>
+          <span>{t("appointments.book.focus")}</span>
           <input
             type="text"
             value={focus}
@@ -818,7 +844,7 @@ function TrainerBookDialog({
           />
         </label>
         <label className="field">
-          <span>Notes (optional)</span>
+          <span>{t("appointments.book.notes")}</span>
           <textarea
             rows={2}
             value={notes}
@@ -827,7 +853,7 @@ function TrainerBookDialog({
         </label>
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -835,7 +861,7 @@ function TrainerBookDialog({
             onClick={handleSubmit}
             disabled={submitting || clientId === null}
           >
-            <Save size={16} /> {submitting ? "Booking…" : "Book"}
+            <Save size={16} /> {submitting ? t("appointments.book.submitting") : t("appointments.book.submit")}
           </button>
         </div>
       </div>
@@ -854,6 +880,7 @@ function CancelDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const clientName = clients?.find((c) => c.id === appointment.client_id)?.full_name;
 
@@ -870,18 +897,31 @@ function CancelDialog({
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
-          <h2>Appointment</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <h2>{t("appointments.cancel.title")}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+          >
             <X size={16} />
           </button>
         </div>
-        <p className="muted">{formatLongDateTime(new Date(appointment.starts_at))}</p>
-        {clientName ? <p>With: <strong>{clientName}</strong></p> : null}
-        {appointment.focus ? <p>Focus: {appointment.focus}</p> : null}
+        <p className="muted">{formatLongDateTime(new Date(appointment.starts_at), i18n.language)}</p>
+        {clientName ? (
+          <p>
+            {t("appointments.cancel.with")} <strong>{clientName}</strong>
+          </p>
+        ) : null}
+        {appointment.focus ? (
+          <p>
+            {t("appointments.cancel.focus")} {appointment.focus}
+          </p>
+        ) : null}
         {appointment.notes ? <p className="muted">{appointment.notes}</p> : null}
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
           <button
             type="button"
@@ -889,7 +929,7 @@ function CancelDialog({
             onClick={handleConfirm}
             disabled={submitting}
           >
-            {submitting ? "Cancelling…" : "Cancel appointment"}
+            {submitting ? t("appointments.cancel.submitting") : t("appointments.cancel.submit")}
           </button>
         </div>
       </div>
@@ -906,6 +946,7 @@ function RemoveOooDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
 
   async function handleConfirm() {
@@ -921,16 +962,21 @@ function RemoveOooDialog({
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
-          <h2>Remove OOO block</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <h2>{t("appointments.removeOoo.title")}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+          >
             <X size={16} />
           </button>
         </div>
-        <p className="muted">{formatLongDateTime(date)}</p>
-        <p>This slot will be available for booking again.</p>
+        <p className="muted">{formatLongDateTime(date, i18n.language)}</p>
+        <p>{t("appointments.removeOoo.hint")}</p>
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose}>
-            Keep it
+            {t("appointments.removeOoo.keep")}
           </button>
           <button
             type="button"
@@ -938,7 +984,7 @@ function RemoveOooDialog({
             onClick={handleConfirm}
             disabled={submitting}
           >
-            {submitting ? "Removing…" : "Remove block"}
+            {submitting ? t("appointments.removeOoo.submitting") : t("appointments.removeOoo.submit")}
           </button>
         </div>
       </div>
@@ -953,6 +999,7 @@ function WeekSidebar({
   weekStart: Date;
   onJump: (next: Date) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [viewMonth, setViewMonth] = useState(
     () => new Date(weekStart.getFullYear(), weekStart.getMonth(), 1),
   );
@@ -962,7 +1009,7 @@ function WeekSidebar({
   }, [weekStart]);
 
   const monthDays = useMemo(() => buildMonthDays(viewMonth), [viewMonth]);
-  const monthLabel = viewMonth.toLocaleDateString(undefined, {
+  const monthLabel = viewMonth.toLocaleDateString(i18n.language, {
     month: "long",
     year: "numeric",
   });
@@ -974,14 +1021,14 @@ function WeekSidebar({
   }
 
   return (
-    <aside className="cal-sidebar" aria-label="Calendar navigation">
+    <aside className="cal-sidebar" aria-label={t("appointments.sidebar.calendarNav")}>
       <div className="cal-mini">
         <div className="cal-mini-header">
           <button
             type="button"
             className="icon-button"
             onClick={() => changeMonth(-1)}
-            aria-label="Previous month"
+            aria-label={t("appointments.sidebar.previousMonth")}
           >
             <ChevronLeft size={14} />
           </button>
@@ -990,15 +1037,15 @@ function WeekSidebar({
             type="button"
             className="icon-button"
             onClick={() => changeMonth(1)}
-            aria-label="Next month"
+            aria-label={t("appointments.sidebar.nextMonth")}
           >
             <ChevronRight size={14} />
           </button>
         </div>
         <div className="cal-mini-grid">
-          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+          {DAY_SHORT_KEYS.map((key, i) => (
             <span key={i} className="cal-mini-dow">
-              {d}
+              {t(key)}
             </span>
           ))}
           {monthDays.map((day) => {
@@ -1028,22 +1075,22 @@ function WeekSidebar({
       </div>
 
       <div className="cal-legend">
-        <h3>Legend</h3>
+        <h3>{t("appointments.sidebar.legend")}</h3>
         <ul>
           <li>
-            <span className="cal-swatch slot-available" /> Available
+            <span className="cal-swatch slot-available" /> {t("appointments.sidebar.available")}
           </li>
           <li>
-            <span className="cal-swatch slot-mine" /> Your booking
+            <span className="cal-swatch slot-mine" /> {t("appointments.sidebar.yourBooking")}
           </li>
           <li>
-            <span className="cal-swatch slot-busy" /> Booked
+            <span className="cal-swatch slot-busy" /> {t("appointments.sidebar.booked")}
           </li>
           <li>
-            <span className="cal-swatch slot-ooo" /> Out of office
+            <span className="cal-swatch slot-ooo" /> {t("appointments.sidebar.ooo")}
           </li>
           <li>
-            <span className="cal-swatch slot-past" /> Past
+            <span className="cal-swatch slot-past" /> {t("appointments.sidebar.past")}
           </li>
         </ul>
       </div>
@@ -1182,18 +1229,18 @@ function startOfDay(date: Date): Date {
   return d;
 }
 
-function formatHour(hour: number): string {
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${String(h12).padStart(2, "0")}:00 ${suffix}`;
+function formatHour(hour: number, locale: string): string {
+  const sample = new Date();
+  sample.setHours(hour, 0, 0, 0);
+  return sample.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatShortDate(date: Date): string {
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function formatShortDate(date: Date, locale: string): string {
+  return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
-function formatLongDateTime(date: Date): string {
-  return date.toLocaleString(undefined, {
+function formatLongDateTime(date: Date, locale: string): string {
+  return date.toLocaleString(locale, {
     weekday: "long",
     month: "short",
     day: "numeric",

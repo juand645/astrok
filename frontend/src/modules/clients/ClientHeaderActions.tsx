@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RefreshCw, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ClientDetail, deleteClient, updateClient } from "../../api";
 
 type Props = {
@@ -10,15 +11,12 @@ type Props = {
 };
 
 export function ClientHeaderActions({ accessToken, client, onDeleted, onReactivated }: Props) {
+  const { t } = useTranslation();
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
-    if (
-      !window.confirm(
-        `Soft-delete ${client.full_name}? Their plans, sessions, and history stay intact and they can be reactivated later.`,
-      )
-    ) {
+    if (!window.confirm(t("clients.detail.confirmDelete", { name: client.full_name }))) {
       return;
     }
     setIsWorking(true);
@@ -27,7 +25,7 @@ export function ClientHeaderActions({ accessToken, client, onDeleted, onReactiva
       await deleteClient(accessToken, client.id);
       onDeleted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
+      setError(err instanceof Error ? err.message : t("clients.detail.errorDelete"));
       setIsWorking(false);
     }
   }
@@ -39,7 +37,7 @@ export function ClientHeaderActions({ accessToken, client, onDeleted, onReactiva
       const updated = await updateClient(accessToken, client.id, { active: true });
       onReactivated(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reactivate failed.");
+      setError(err instanceof Error ? err.message : t("clients.detail.errorReactivate"));
     } finally {
       setIsWorking(false);
     }
@@ -54,7 +52,7 @@ export function ClientHeaderActions({ accessToken, client, onDeleted, onReactiva
           onClick={handleDelete}
           disabled={isWorking}
         >
-          <Trash2 size={16} /> {isWorking ? "Working…" : "Delete client"}
+          <Trash2 size={16} /> {isWorking ? t("clients.detail.working") : t("clients.detail.delete")}
         </button>
       ) : (
         <button
@@ -63,7 +61,7 @@ export function ClientHeaderActions({ accessToken, client, onDeleted, onReactiva
           onClick={handleReactivate}
           disabled={isWorking}
         >
-          <RefreshCw size={16} /> {isWorking ? "Working…" : "Reactivate client"}
+          <RefreshCw size={16} /> {isWorking ? t("clients.detail.working") : t("clients.detail.reactivate")}
         </button>
       )}
       {error ? <span className="error-text">{error}</span> : null}

@@ -7,6 +7,8 @@ import {
   HeartPulse,
   Users,
 } from "lucide-react";
+import { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   TrainerDashboard,
   DashboardAppointment,
@@ -26,6 +28,7 @@ export function DashboardModule({
   onNavigate,
   onSelectClient,
 }: DashboardModuleProps) {
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<TrainerDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(accessToken));
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +47,7 @@ export function DashboardModule({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load dashboard.");
+          setError(err instanceof Error ? err.message : t("dashboard.trainer.errorLoad"));
         }
       })
       .finally(() => {
@@ -53,15 +56,15 @@ export function DashboardModule({
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [accessToken, t]);
 
   if (!accessToken) {
     return (
-      <section className="module-stack" aria-label="Dashboard">
+      <section className="module-stack" aria-label={t("dashboard.trainer.ariaLabelSignedOut")}>
         <header className="module-header">
           <div>
-            <h1>Dashboard</h1>
-            <p>Sign in to see your day at a glance.</p>
+            <h1>{t("dashboard.trainer.title")}</h1>
+            <p>{t("dashboard.trainer.signInPrompt")}</p>
           </div>
         </header>
       </section>
@@ -72,35 +75,39 @@ export function DashboardModule({
   const buckets = bucketAppointments(data?.upcoming_appointments ?? []);
 
   return (
-    <section className="module-stack" aria-label="Trainer dashboard">
+    <section className="module-stack" aria-label={t("dashboard.trainer.ariaLabel")}>
       <header className="module-header">
         <div>
-          <h1>{trainerName ? `Hi, ${firstName(trainerName)}` : "Dashboard"}</h1>
-          <p>Your day, your queue, and what needs attention.</p>
+          <h1>
+            {trainerName
+              ? t("dashboard.trainer.greeting", { name: firstName(trainerName) })
+              : t("dashboard.trainer.title")}
+          </h1>
+          <p>{t("dashboard.trainer.subtitle")}</p>
         </div>
       </header>
 
       {error ? <p className="error-text">{error}</p> : null}
 
-      <section className="stats-grid stats-grid-4" aria-label="Overview">
+      <section className="stats-grid stats-grid-4" aria-label={t("dashboard.trainer.overviewLabel")}>
         <article className="metric-card">
           <Users size={20} />
-          <span>Active clients</span>
+          <span>{t("dashboard.trainer.activeClients")}</span>
           <strong>{stats ? stats.active_clients : "—"}</strong>
         </article>
         <article className="metric-card">
           <Dumbbell size={20} />
-          <span>Active plans</span>
+          <span>{t("dashboard.trainer.activePlans")}</span>
           <strong>{stats ? stats.active_plans : "—"}</strong>
         </article>
         <article className="metric-card">
           <ClipboardCheck size={20} />
-          <span>Sessions this week</span>
+          <span>{t("dashboard.trainer.sessionsThisWeek")}</span>
           <strong>{stats ? stats.sessions_this_week : "—"}</strong>
         </article>
         <article className="metric-card">
           <CalendarDays size={20} />
-          <span>Appointments this week</span>
+          <span>{t("dashboard.trainer.appointmentsThisWeek")}</span>
           <strong>{stats ? stats.appointments_this_week : "—"}</strong>
         </article>
       </section>
@@ -108,60 +115,71 @@ export function DashboardModule({
       <section className="content-grid">
         <div className="panel">
           <div className="panel-header">
-            <h2>Schedule</h2>
+            <h2>{t("dashboard.trainer.scheduleHeading")}</h2>
             <button
               type="button"
               className="ghost-button"
               onClick={() => onNavigate?.("appointments")}
             >
-              Open calendar
+              {t("dashboard.trainer.openCalendar")}
             </button>
           </div>
 
           <ScheduleBlock
-            label="Today"
+            label={t("dashboard.trainer.today")}
             appointments={buckets.today}
-            empty="No appointments today."
+            empty={t("dashboard.trainer.noAppointmentsToday")}
             isLoading={isLoading}
+            loadingLabel={t("dashboard.trainer.loading")}
+            locale={i18n.language}
           />
           <ScheduleBlock
-            label="Tomorrow"
+            label={t("dashboard.trainer.tomorrow")}
             appointments={buckets.tomorrow}
-            empty="No appointments tomorrow."
+            empty={t("dashboard.trainer.noAppointmentsTomorrow")}
             isLoading={isLoading}
+            loadingLabel={t("dashboard.trainer.loading")}
+            locale={i18n.language}
           />
         </div>
 
         <div className="panel">
           <div className="panel-header">
-            <h2>Needs attention</h2>
-            <span>{actionCount(data)} item(s)</span>
+            <h2>{t("dashboard.trainer.needsAttentionHeading")}</h2>
+            <span>{t("dashboard.trainer.itemCount", { count: actionCount(data) })}</span>
           </div>
 
           <ActionList
-            title="Draft plans to review"
+            title={t("dashboard.trainer.draftPlansTitle")}
             icon={<ClipboardCheck size={16} />}
             isLoading={isLoading}
-            emptyText="No drafts pending approval."
+            loadingLabel={t("dashboard.trainer.loading")}
+            emptyText={t("dashboard.trainer.draftPlansEmpty")}
             items={(data?.draft_plans ?? []).map((plan) => ({
               key: `plan-${plan.id}`,
               primary: plan.title,
-              secondary: `${plan.client_name} · updated ${formatRelative(plan.updated_at)}`,
+              secondary: t("dashboard.trainer.draftPlanSecondary", {
+                client: plan.client_name,
+                when: formatRelative(plan.updated_at, t, i18n.language),
+              }),
               onClick: onSelectClient ? () => onSelectClient(plan.client_id) : undefined,
             }))}
           />
 
           <ActionList
-            title="PAR-Q flagged for clearance"
+            title={t("dashboard.trainer.parqAlertsTitle")}
             icon={<HeartPulse size={16} />}
             isLoading={isLoading}
-            emptyText="No PAR-Q results need clearance."
+            loadingLabel={t("dashboard.trainer.loading")}
+            emptyText={t("dashboard.trainer.parqAlertsEmpty")}
             items={(data?.par_q_alerts ?? []).map((alert) => ({
               key: `parq-${alert.assessment_id}`,
               primary: alert.client_name,
               secondary: alert.completed_at
-                ? `Completed ${formatRelative(alert.completed_at)} · medical clearance recommended`
-                : "Medical clearance recommended",
+                ? t("dashboard.trainer.parqAlertSecondaryCompleted", {
+                    when: formatRelative(alert.completed_at, t, i18n.language),
+                  })
+                : t("dashboard.trainer.parqAlertSecondaryNoDate"),
               icon: <AlertTriangle size={14} />,
               onClick: onSelectClient ? () => onSelectClient(alert.client_id) : undefined,
             }))}
@@ -187,12 +205,14 @@ function ActionList({
   icon,
   items,
   isLoading,
+  loadingLabel,
   emptyText,
 }: {
   title: string;
   icon: React.ReactNode;
   items: ActionItem[];
   isLoading: boolean;
+  loadingLabel: string;
   emptyText: string;
 }) {
   return (
@@ -202,7 +222,7 @@ function ActionList({
         <span>{title}</span>
       </div>
       {isLoading ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{loadingLabel}</p>
       ) : items.length === 0 ? (
         <p className="muted">{emptyText}</p>
       ) : (
@@ -234,24 +254,28 @@ function ScheduleBlock({
   appointments,
   empty,
   isLoading,
+  loadingLabel,
+  locale,
 }: {
   label: string;
   appointments: DashboardAppointment[];
   empty: string;
   isLoading: boolean;
+  loadingLabel: string;
+  locale: string;
 }) {
   return (
     <div className="schedule-block">
       <h3 className="schedule-block-title">{label}</h3>
       {isLoading ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{loadingLabel}</p>
       ) : appointments.length === 0 ? (
         <p className="muted">{empty}</p>
       ) : (
         <div className="appointment-list">
           {appointments.map((appointment) => (
             <article className="appointment-row" key={appointment.id}>
-              <time>{formatTime(appointment.starts_at)}</time>
+              <time>{formatTime(appointment.starts_at, locale)}</time>
               <div>
                 <strong>{appointment.client_name}</strong>
                 <span>{appointment.focus}</span>
@@ -288,23 +312,23 @@ function bucketAppointments(items: DashboardAppointment[]): {
   return { today, tomorrow };
 }
 
-function formatTime(iso: string): string {
+function formatTime(iso: string, locale: string): string {
   const date = new Date(iso);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, t: TFunction, locale: string): string {
   const then = new Date(iso).getTime();
   const now = Date.now();
   const diffMs = now - then;
   const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("dashboard.trainer.relativeJustNow");
+  if (minutes < 60) return t("dashboard.trainer.relativeMinutes", { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("dashboard.trainer.relativeHours", { count: hours });
   const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  if (days < 30) return t("dashboard.trainer.relativeDays", { count: days });
+  return new Date(iso).toLocaleDateString(locale);
 }
 
 function firstName(fullName: string): string {

@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { ArrowLeft, CalendarPlus, Plus, Save, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Circuito,
   CreateClientPayload,
@@ -8,6 +9,7 @@ import {
   PlanContent,
   createClient,
 } from "../../api";
+import { prettyDayLabel } from "./clientDetailUtils";
 
 type NewClientModuleProps = {
   accessToken: string;
@@ -48,14 +50,8 @@ function nextDayKey(existing: string[]): string {
   return `dia_${maxNumber + 1}`;
 }
 
-function prettyDayLabel(dayKey: string): string {
-  if (!dayKey) return "Day";
-  const match = dayKey.match(/^dia[_-]?(\d+)$/i);
-  if (match) return `Día ${match[1]}`;
-  return dayKey;
-}
-
 export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientModuleProps) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -140,7 +136,12 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
     const exerciseCount = circuitos.reduce((sum, c) => sum + c.exercises.length, 0);
     if (
       exerciseCount > 0 &&
-      !window.confirm(`Delete ${prettyDayLabel(dayKey)} and its ${exerciseCount} exercise(s)?`)
+      !window.confirm(
+        t("clients.plan.confirmDeleteDay", {
+          day: prettyDayLabel(dayKey, t),
+          count: exerciseCount,
+        }),
+      )
     ) {
       return;
     }
@@ -197,7 +198,9 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
     const count = circuitos[circuitoIndex]?.exercises.length ?? 0;
     if (
       count > 0 &&
-      !window.confirm(`Delete Circuito ${circuitoIndex + 1} and its ${count} exercise(s)?`)
+      !window.confirm(
+        t("clients.plan.confirmDeleteCircuito", { number: circuitoIndex + 1, count }),
+      )
     ) {
       return;
     }
@@ -287,7 +290,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
     setError(null);
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("clients.new.errorPasswordShort"));
       return;
     }
 
@@ -301,7 +304,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
 
     for (const plan of payloadPlans) {
       if (!plan.title) {
-        setError("Every plan needs a title.");
+        setError(t("clients.new.errorPlanTitle"));
         return;
       }
     }
@@ -325,35 +328,35 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
       await createClient(accessToken, payload);
       onCreated();
     } catch (currentError) {
-      setError(currentError instanceof Error ? currentError.message : "Could not create client.");
+      setError(currentError instanceof Error ? currentError.message : t("clients.new.errorCreate"));
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <section className="detail-shell" aria-label="New client">
+    <section className="detail-shell" aria-label={t("clients.new.ariaLabel")}>
       <button className="secondary-button back-button" onClick={onCancel} type="button">
-        <ArrowLeft size={16} /> Back to clients
+        <ArrowLeft size={16} /> {t("clients.new.back")}
       </button>
 
       <form className="detail-shell" onSubmit={handleSubmit}>
         <header className="detail-header">
           <div>
-            <h1>New client</h1>
-            <p className="muted">Create a client and link them to you as their professional.</p>
+            <h1>{t("clients.new.title")}</h1>
+            <p className="muted">{t("clients.new.subtitle")}</p>
           </div>
         </header>
 
         <section className="panel">
           <div className="panel-header">
-            <h2>Basic info</h2>
-            <span>Account credentials and identity</span>
+            <h2>{t("clients.new.basicInfo")}</h2>
+            <span>{t("clients.new.basicInfoHint")}</span>
           </div>
 
           <div className="form-grid">
             <label className="field">
-              <span>Full name *</span>
+              <span>{t("clients.new.fullName")}</span>
               <input
                 type="text"
                 value={fullName}
@@ -362,7 +365,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
               />
             </label>
             <label className="field">
-              <span>Email *</span>
+              <span>{t("clients.new.email")}</span>
               <input
                 type="email"
                 value={email}
@@ -371,7 +374,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
               />
             </label>
             <label className="field">
-              <span>Username *</span>
+              <span>{t("clients.new.username")}</span>
               <input
                 type="text"
                 value={username}
@@ -380,7 +383,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
               />
             </label>
             <label className="field">
-              <span>Temporary password * (min 8 chars)</span>
+              <span>{t("clients.new.password")}</span>
               <input
                 type="text"
                 value={password}
@@ -390,7 +393,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
               />
             </label>
             <label className="field">
-              <span>Birth date</span>
+              <span>{t("clients.new.birthDate")}</span>
               <input
                 type="date"
                 value={birthDate}
@@ -398,29 +401,29 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
               />
             </label>
             <label className="field">
-              <span>Personal number</span>
+              <span>{t("clients.new.personalNumber")}</span>
               <input
                 type="tel"
                 value={personalNumber}
-                placeholder="e.g. +52 555 123 4567"
+                placeholder={t("clients.new.personalNumberPlaceholder")}
                 onChange={(event) => setPersonalNumber(event.target.value)}
               />
             </label>
             <label className="field">
-              <span>National ID number</span>
+              <span>{t("clients.new.idNumber")}</span>
               <input
                 type="text"
                 value={idNumber}
-                placeholder="e.g. CURP / DNI / passport"
+                placeholder={t("clients.new.idNumberPlaceholder")}
                 onChange={(event) => setIdNumber(event.target.value)}
               />
             </label>
             <label className="field">
-              <span>Focus (relation note)</span>
+              <span>{t("clients.new.focus")}</span>
               <input
                 type="text"
                 value={relationDescription}
-                placeholder="e.g. Strength baseline"
+                placeholder={t("clients.new.focusPlaceholder")}
                 onChange={(event) => setRelationDescription(event.target.value)}
               />
             </label>
@@ -429,15 +432,15 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
 
         <section className="panel">
           <div className="panel-header">
-            <h2>Notes</h2>
-            <span>Goal, training history, anything to remember.</span>
+            <h2>{t("clients.new.notesHeading")}</h2>
+            <span>{t("clients.new.notesHint")}</span>
           </div>
           <label className="field">
-            <span>Description</span>
+            <span>{t("clients.new.description")}</span>
             <textarea
               rows={3}
               value={description}
-              placeholder="Goal: build strength (beginner). No current injuries..."
+              placeholder={t("clients.new.descriptionPlaceholder")}
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
@@ -445,42 +448,42 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
 
         <section className="panel">
           <div className="panel-header">
-            <h2>Initial measures</h2>
-            <span>Optional. Leave blank to skip.</span>
+            <h2>{t("clients.new.measuresHeading")}</h2>
+            <span>{t("clients.new.measuresHint")}</span>
           </div>
 
           <div className="table-wrap">
             <table className="detail-table">
               <thead>
                 <tr>
-                  <th>Field</th>
-                  <th>Value</th>
-                  <th aria-label="Actions" />
+                  <th>{t("clients.measures.fieldHeader")}</th>
+                  <th>{t("clients.measures.valueHeader")}</th>
+                  <th aria-label={t("clients.measures.actionsHeader")} />
                 </tr>
               </thead>
               <tbody>
                 {measureRows.map((row, index) => (
                   <tr key={index}>
-                    <td data-label="Field">
+                    <td data-label={t("clients.measures.fieldHeader")}>
                       <input
                         type="text"
                         value={row.key}
-                        placeholder="e.g. peso"
+                        placeholder={t("clients.measures.keyPlaceholder")}
                         onChange={(event) => updateMeasureRow(index, "key", event.target.value)}
                       />
                     </td>
-                    <td data-label="Value">
+                    <td data-label={t("clients.measures.valueHeader")}>
                       <input
                         type="text"
                         value={row.value}
-                        placeholder="e.g. 62"
+                        placeholder={t("clients.measures.valuePlaceholder")}
                         onChange={(event) => updateMeasureRow(index, "value", event.target.value)}
                       />
                     </td>
                     <td className="row-actions">
                       <button
                         className="icon-button"
-                        aria-label="Remove row"
+                        aria-label={t("clients.measures.removeRow")}
                         type="button"
                         onClick={() => removeMeasureRow(index)}
                       >
@@ -495,24 +498,24 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
 
           <div className="panel-actions">
             <button className="secondary-button" type="button" onClick={addMeasureRow}>
-              <Plus size={16} /> Add row
+              <Plus size={16} /> {t("clients.measures.addRow")}
             </button>
           </div>
         </section>
 
         <section className="panel-stack">
           <div className="panel-header">
-            <h2>Plans</h2>
-            <span>Optional. Add one or more initial plans.</span>
+            <h2>{t("clients.new.plansHeading")}</h2>
+            <span>{t("clients.new.plansHint")}</span>
           </div>
 
           {plans.map((plan, planIndex) => (
             <article className="panel" key={planIndex}>
               <div className="panel-header">
-                <h3>Plan {planIndex + 1}</h3>
+                <h3>{t("clients.new.planNumber", { number: planIndex + 1 })}</h3>
                 <button
                   className="icon-button"
-                  aria-label="Remove plan"
+                  aria-label={t("clients.new.removePlan")}
                   type="button"
                   onClick={() => removePlan(planIndex)}
                 >
@@ -522,33 +525,33 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
 
               <div className="form-grid">
                 <label className="field">
-                  <span>Title *</span>
+                  <span>{t("clients.plan.titleLabel")}</span>
                   <input
                     type="text"
                     value={plan.title}
-                    placeholder="e.g. Fuerza base - Bloque 1"
+                    placeholder={t("clients.plan.titlePlaceholder")}
                     onChange={(event) => updatePlan(planIndex, "title", event.target.value)}
                   />
                 </label>
                 <label className="field">
-                  <span>Status</span>
+                  <span>{t("clients.plan.status")}</span>
                   <select
                     value={plan.status}
                     onChange={(event) => updatePlan(planIndex, "status", event.target.value)}
                   >
-                    <option value="draft">draft</option>
-                    <option value="approved">approved</option>
-                    <option value="archived">archived</option>
+                    <option value="draft">{t("clients.plan.statusDraft")}</option>
+                    <option value="approved">{t("clients.plan.statusApproved")}</option>
+                    <option value="archived">{t("clients.plan.statusArchived")}</option>
                   </select>
                 </label>
               </div>
 
               <label className="field">
-                <span>Description</span>
+                <span>{t("clients.plan.description")}</span>
                 <textarea
                   rows={2}
                   value={plan.description}
-                  placeholder="Short description of this plan"
+                  placeholder={t("clients.plan.descriptionPlaceholder")}
                   onChange={(event) => updatePlan(planIndex, "description", event.target.value)}
                 />
               </label>
@@ -573,7 +576,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                             className={`day-tab ${day === activeDay ? "active" : ""}`}
                             onClick={() => setPlanActiveDay(planIndex, day)}
                           >
-                            {prettyDayLabel(day)}
+                            {prettyDayLabel(day, t)}
                           </button>
                         ))}
                       </div>
@@ -581,27 +584,31 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                         type="button"
                         className="day-add-button"
                         onClick={() => addPlanDay(planIndex)}
-                        title="Add day"
-                        aria-label="Add day"
+                        title={t("clients.plan.addDayTitle")}
+                        aria-label={t("clients.plan.addDayTitle")}
                       >
                         <CalendarPlus size={14} />
-                        <span>Add</span>
+                        <span>{t("clients.plan.addDay")}</span>
                       </button>
                     </div>
 
                     {dayKeys.length === 0 ? (
-                      <p className="muted">No days yet. Add one to start prescribing exercises.</p>
+                      <p className="muted">{t("clients.plan.noDays")}</p>
                     ) : (
                       <>
                         {activeDay ? (
                           <div className="plan-day-block">
                             <div className="plan-day-header">
-                              <h4>{prettyDayLabel(activeDay)}</h4>
+                              <h4>{prettyDayLabel(activeDay, t)}</h4>
                               <button
                                 type="button"
                                 className="icon-button"
-                                aria-label={`Delete ${prettyDayLabel(activeDay)}`}
-                                title={`Delete ${prettyDayLabel(activeDay)}`}
+                                aria-label={t("clients.plan.deleteDay", {
+                                  day: prettyDayLabel(activeDay, t),
+                                })}
+                                title={t("clients.plan.deleteDay", {
+                                  day: prettyDayLabel(activeDay, t),
+                                })}
                                 onClick={() => removePlanDay(planIndex, activeDay)}
                               >
                                 <Trash2 size={14} />
@@ -611,10 +618,10 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                             {activeCircuitos.map((circuito, circuitoIndex) => (
                               <div className="circuito-block" key={circuitoIndex}>
                                 <div className="circuito-header">
-                                  <h4>Circuito {circuitoIndex + 1}</h4>
+                                  <h4>{t("clients.plan.circuito", { number: circuitoIndex + 1 })}</h4>
                                   <div className="circuito-header-actions">
                                     <label className="circuito-series">
-                                      <span>Series</span>
+                                      <span>{t("clients.plan.series")}</span>
                                       <input
                                         type="number"
                                         min={0}
@@ -632,8 +639,12 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                     <button
                                       type="button"
                                       className="icon-button"
-                                      aria-label={`Delete Circuito ${circuitoIndex + 1}`}
-                                      title={`Delete Circuito ${circuitoIndex + 1}`}
+                                      aria-label={t("clients.plan.deleteCircuito", {
+                                        number: circuitoIndex + 1,
+                                      })}
+                                      title={t("clients.plan.deleteCircuito", {
+                                        number: circuitoIndex + 1,
+                                      })}
                                       onClick={() =>
                                         removePlanCircuito(planIndex, activeDay, circuitoIndex)
                                       }
@@ -647,21 +658,21 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                   <table className="detail-table">
                                     <thead>
                                       <tr>
-                                        <th>Ejercicio</th>
-                                        <th>Repeticiones</th>
-                                        <th>Peso</th>
-                                        <th>Media URL</th>
-                                        <th aria-label="Actions" />
+                                        <th>{t("clients.plan.ejercicio")}</th>
+                                        <th>{t("clients.plan.repeticiones")}</th>
+                                        <th>{t("clients.plan.peso")}</th>
+                                        <th>{t("clients.plan.mediaUrl")}</th>
+                                        <th aria-label={t("clients.plan.actions")} />
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {circuito.exercises.map((exercise, exerciseIndex) => (
                                         <tr key={exerciseIndex}>
-                                          <td data-label="Ejercicio">
+                                          <td data-label={t("clients.plan.ejercicio")}>
                                             <input
                                               type="text"
                                               value={exercise.ejercicio}
-                                              placeholder="Press de banca"
+                                              placeholder={t("clients.plan.exercisePlaceholder")}
                                               onChange={(event) =>
                                                 updatePlanExercise(
                                                   planIndex,
@@ -674,7 +685,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                               }
                                             />
                                           </td>
-                                          <td data-label="Repeticiones">
+                                          <td data-label={t("clients.plan.repeticiones")}>
                                             <input
                                               type="number"
                                               min={0}
@@ -691,11 +702,11 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                               }
                                             />
                                           </td>
-                                          <td data-label="Peso">
+                                          <td data-label={t("clients.plan.peso")}>
                                             <input
                                               type="text"
                                               value={exercise.peso}
-                                              placeholder="70kg"
+                                              placeholder={t("clients.plan.pesoPlaceholder")}
                                               onChange={(event) =>
                                                 updatePlanExercise(
                                                   planIndex,
@@ -708,11 +719,11 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                               }
                                             />
                                           </td>
-                                          <td data-label="Media URL">
+                                          <td data-label={t("clients.plan.mediaUrl")}>
                                             <input
                                               type="text"
                                               value={exercise.media_url}
-                                              placeholder="YouTube link, image, GIF, or .mp4"
+                                              placeholder={t("clients.plan.mediaUrlPlaceholder")}
                                               onChange={(event) =>
                                                 updatePlanExercise(
                                                   planIndex,
@@ -728,7 +739,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                           <td className="row-actions">
                                             <button
                                               className="icon-button"
-                                              aria-label="Remove exercise"
+                                              aria-label={t("clients.plan.removeExercise")}
                                               type="button"
                                               onClick={() =>
                                                 removePlanExercise(
@@ -747,7 +758,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                       {circuito.exercises.length === 0 ? (
                                         <tr>
                                           <td colSpan={5} className="muted center">
-                                            No exercises in this circuit yet.
+                                            {t("clients.plan.noExercises")}
                                           </td>
                                         </tr>
                                       ) : null}
@@ -763,7 +774,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                       addPlanExercise(planIndex, activeDay, circuitoIndex)
                                     }
                                   >
-                                    <Plus size={16} /> Add exercise
+                                    <Plus size={16} /> {t("clients.plan.addExercise")}
                                   </button>
                                 </div>
                               </div>
@@ -775,7 +786,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                                 type="button"
                                 onClick={() => addPlanCircuito(planIndex, activeDay)}
                               >
-                                <Plus size={16} /> Add circuito
+                                <Plus size={16} /> {t("clients.plan.addCircuito")}
                               </button>
                             </div>
                           </div>
@@ -791,7 +802,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
           {plans.length === 0 ? (
             <div className="panel-actions">
               <button className="secondary-button" type="button" onClick={addPlan}>
-                <Plus size={16} /> Add plan
+                <Plus size={16} /> {t("clients.detail.addPlan")}
               </button>
             </div>
           ) : null}
@@ -801,10 +812,10 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
 
         <div className="panel-actions">
           <button className="secondary-button" type="button" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button className="primary-button" type="submit" disabled={isSaving}>
-            <Save size={16} /> {isSaving ? "Creating..." : "Create client"}
+            <Save size={16} /> {isSaving ? t("clients.new.creating") : t("clients.new.submit")}
           </button>
         </div>
       </form>

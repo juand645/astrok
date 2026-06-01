@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronRight, Save, Search, Sparkles, Star, X } from "lucide-react";
+import { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   AuthUser,
   Circuito,
@@ -43,6 +45,7 @@ function ClientSessionsView({
   accessToken: string;
   clientId: number;
 }) {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +59,7 @@ function ClientSessionsView({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load plans.");
+          setError(err instanceof Error ? err.message : t("sessions.errorLoadPlans"));
         }
       })
       .finally(() => {
@@ -65,22 +68,22 @@ function ClientSessionsView({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, clientId]);
+  }, [accessToken, clientId, t]);
 
   return (
-    <section className="module-stack" aria-label="Plan sessions">
+    <section className="module-stack" aria-label={t("sessions.ariaLabel")}>
       <header className="module-header">
         <div>
-          <h1>Plan Sessions</h1>
-          <p>Log your workouts and track your weekly progress.</p>
+          <h1>{t("sessions.title")}</h1>
+          <p>{t("sessions.clientSubtitle")}</p>
         </div>
       </header>
 
       {error ? <p className="error-text">{error}</p> : null}
       {isLoading ? (
-        <p>Loading plans...</p>
+        <p>{t("sessions.loadingPlans")}</p>
       ) : plans.length === 0 ? (
-        <p className="muted">Your trainer hasn't set up a plan for you yet.</p>
+        <p className="muted">{t("sessions.noTrainerPlan")}</p>
       ) : (
         <SessionEditor accessToken={accessToken} clientId={clientId} plans={plans} />
       )}
@@ -97,6 +100,7 @@ function SessionEditor({
   clientId: number;
   plans: PlanSummary[];
 }) {
+  const { t } = useTranslation();
   const sortedPlans = useMemo(
     () => [...plans].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [plans],
@@ -169,7 +173,7 @@ function SessionEditor({
     <>
       {sortedPlans.length > 1 ? (
         <label className="field inline-field">
-          <span>Plan</span>
+          <span>{t("sessions.planLabel")}</span>
           <select value={planId} onChange={(event) => setPlanId(Number(event.target.value))}>
             {sortedPlans.map((p) => (
               <option key={p.id} value={p.id}>
@@ -181,7 +185,7 @@ function SessionEditor({
       ) : null}
 
       {dayKeys.length === 0 ? (
-        <p className="muted">This plan doesn't have any days yet. Ask your trainer to add some.</p>
+        <p className="muted">{t("sessions.planNoDaysClient")}</p>
       ) : (
         <>
           <DayTabs
@@ -229,6 +233,7 @@ function DayLogPanel({
   isLoading: boolean;
   onSaved: (session: WorkoutSession) => void;
 }) {
+  const { t } = useTranslation();
   const circuitGroups = useMemo(() => toCircuitGroups(dayContent), [dayContent]);
   const prescribed = useMemo(
     () =>
@@ -307,7 +312,7 @@ function DayLogPanel({
       setRating(session.rating);
       setCoachMessage(session.ai_response ?? null);
       setFeedbackKind("ok");
-      setFeedback("Session saved and marked as completed.");
+      setFeedback(t("sessions.savedCompleted"));
 
       if (session.completed && !session.ai_response) {
         setIsLoadingCoach(true);
@@ -322,7 +327,7 @@ function DayLogPanel({
       }
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Save failed.");
+      setFeedback(err instanceof Error ? err.message : t("sessions.errorSave"));
     } finally {
       setIsSaving(false);
     }
@@ -341,14 +346,14 @@ function DayLogPanel({
   return (
     <section className="panel">
       <div className="panel-header">
-        <h2>{prettyDayLabel(dayKey)}</h2>
-        <span>{prescribed.length} exercise(s) prescribed</span>
+        <h2>{prettyDayLabel(dayKey, t)}</h2>
+        <span>{t("sessions.exerciseCount", { count: prescribed.length })}</span>
       </div>
 
       {alreadyCompletedThisWeek ? (
         <div className="completion-banner" role="status">
           <CheckCircle2 size={18} />
-          <span>Already completed for this week.</span>
+          <span>{t("sessions.alreadyCompleted")}</span>
           {thisWeekSession?.rating ? <StarRow value={thisWeekSession.rating} /> : null}
         </div>
       ) : null}
@@ -357,12 +362,12 @@ function DayLogPanel({
         <div className={`coach-card ${isLoadingCoach && !coachMessage ? "loading" : ""}`} role="status">
           <div className="coach-card-header">
             <Sparkles size={16} />
-            <span>Your coach says</span>
+            <span>{t("sessions.coachSaysHeading")}</span>
           </div>
           {coachMessage ? (
             <p>{coachMessage}</p>
           ) : (
-            <p className="muted">Reviewing your numbers…</p>
+            <p className="muted">{t("sessions.coachThinking")}</p>
           )}
         </div>
       ) : null}
@@ -384,18 +389,18 @@ function DayLogPanel({
 
 
       {isLoading ? (
-        <p>Loading last session...</p>
+        <p>{t("sessions.loadingLastSession")}</p>
       ) : prescribed.length === 0 ? (
-        <p className="muted">No exercises prescribed for this day.</p>
+        <p className="muted">{t("sessions.noExercises")}</p>
       ) : (
         <div className="table-wrap">
           <table className="detail-table session-table">
             <thead>
               <tr>
-                <th>Ejercicio</th>
-                <th>Prescribed</th>
-                <th>Last</th>
-                <th>Today</th>
+                <th>{t("sessions.exerciseHeader")}</th>
+                <th>{t("sessions.prescribedHeader")}</th>
+                <th>{t("sessions.lastHeader")}</th>
+                <th>{t("sessions.todayHeader")}</th>
               </tr>
             </thead>
             <tbody>
@@ -410,8 +415,11 @@ function DayLogPanel({
                       {showHeader ? (
                         <tr className="session-circuit-header">
                           <td colSpan={4}>
-                            <strong>Circuito {groupIndex + 1}</strong>
-                            <span className="muted"> · {group.series} series</span>
+                            <strong>{t("sessions.circuitTitle", { number: groupIndex + 1 })}</strong>
+                            <span className="muted">
+                              {" · "}
+                              {t("sessions.circuitSeries", { count: group.series ?? 0 })}
+                            </span>
                           </td>
                         </tr>
                       ) : null}
@@ -430,15 +438,15 @@ function DayLogPanel({
                           : null;
                         return (
                           <tr key={`${row.ejercicio}-${index}`}>
-                            <td data-label="Ejercicio">
+                            <td data-label={t("sessions.exerciseHeader")}>
                               <div className="exercise-cell">
                                 {thumb && prescribedRow ? (
                                   <button
                                     type="button"
                                     className="exercise-thumb-link"
                                     onClick={() => setPreviewExercise(prescribedRow)}
-                                    title="Preview"
-                                    aria-label={`Preview ${row.ejercicio}`}
+                                    title={t("sessions.previewTitle")}
+                                    aria-label={t("sessions.previewLabel", { exercise: row.ejercicio })}
                                   >
                                     <img
                                       className="exercise-thumb"
@@ -456,28 +464,28 @@ function DayLogPanel({
                                 <strong>{row.ejercicio}</strong>
                               </div>
                             </td>
-                            <td data-label="Prescribed">
+                            <td data-label={t("sessions.prescribedHeader")}>
                               <span className="muted">{summarize(prescribedRow)}</span>
                             </td>
-                            <td data-label="Last">
+                            <td data-label={t("sessions.lastHeader")}>
                               <span className="muted">
                                 {lastRow ? summarize(lastRow) : "—"}
                               </span>
                             </td>
-                            <td data-label="Today">
+                            <td data-label={t("sessions.todayHeader")}>
                               <div className="today-inputs">
                                 <input
                                   type="text"
-                                  aria-label={`${row.ejercicio} peso`}
+                                  aria-label={t("sessions.pesoAriaLabel", { exercise: row.ejercicio })}
                                   value={row.peso}
-                                  placeholder="peso"
+                                  placeholder={t("sessions.pesoPlaceholder")}
                                   onChange={(event) =>
                                     updateRow(index, "peso", event.target.value)
                                   }
                                 />
                                 <input
                                   type="number"
-                                  aria-label={`${row.ejercicio} repeticiones`}
+                                  aria-label={t("sessions.repsAriaLabel", { exercise: row.ejercicio })}
                                   min={0}
                                   value={row.repeticiones}
                                   onChange={(event) =>
@@ -499,18 +507,18 @@ function DayLogPanel({
       )}
 
       <label className="field">
-        <span>Notes (optional)</span>
+        <span>{t("sessions.notesLabel")}</span>
         <textarea
           rows={2}
           value={notes}
-          placeholder="How did it feel? Anything to remember next week?"
+          placeholder={t("sessions.notesPlaceholder")}
           onChange={(event) => setNotes(event.target.value)}
         />
       </label>
 
       <div className="panel-actions">
         <button className="primary-button" onClick={save} disabled={isSaving} type="button">
-          <Save size={16} /> {isSaving ? "Saving..." : "Save session"}
+          <Save size={16} /> {isSaving ? t("sessions.saving") : t("sessions.save")}
         </button>
       </div>
 
@@ -532,6 +540,7 @@ function RatingModal({
   onSave: (rating: number | null) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [stars, setStars] = useState<number>(initialRating ?? 0);
   const [hover, setHover] = useState<number>(0);
 
@@ -552,15 +561,15 @@ function RatingModal({
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
-        <h2>How did this session feel?</h2>
-        <p className="muted">Pick a star to rate. You can also save without rating.</p>
-        <div className="star-row" role="radiogroup" aria-label="Session rating">
+        <h2>{t("sessions.rating.title")}</h2>
+        <p className="muted">{t("sessions.rating.hint")}</p>
+        <div className="star-row" role="radiogroup" aria-label={t("sessions.rating.groupLabel")}>
           {[1, 2, 3, 4, 5].map((value) => (
             <button
               key={value}
               type="button"
               className="star-button"
-              aria-label={`${value} star${value === 1 ? "" : "s"}`}
+              aria-label={t("sessions.rating.stars", { count: value })}
               aria-checked={stars === value}
               role="radio"
               onClick={() => handleStarClick(value)}
@@ -577,14 +586,14 @@ function RatingModal({
         </div>
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
             className="primary-button"
             onClick={() => onSave(stars || null)}
           >
-            <Save size={16} /> Save session
+            <Save size={16} /> {t("sessions.rating.save")}
           </button>
         </div>
       </div>
@@ -599,6 +608,7 @@ function ExercisePreviewModal({
   exercise: ExerciseEntry;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -615,11 +625,11 @@ function ExercisePreviewModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="exercise-preview-panel" onClick={(event) => event.stopPropagation()}>
         <div className="exercise-preview-header">
-          <h2>{exercise.ejercicio || "Exercise"}</h2>
+          <h2>{exercise.ejercicio || t("sessions.preview.fallbackTitle")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close preview"
+            aria-label={t("sessions.preview.close")}
             onClick={onClose}
           >
             <X size={18} />
@@ -630,7 +640,11 @@ function ExercisePreviewModal({
             <iframe
               className="exercise-preview-video"
               src={`https://www.youtube.com/embed/${youtubeId}`}
-              title={exercise.ejercicio || "Exercise video"}
+              title={
+                exercise.ejercicio
+                  ? t("sessions.preview.videoTitle", { exercise: exercise.ejercicio })
+                  : t("sessions.preview.videoTitleFallback")
+              }
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
@@ -647,7 +661,7 @@ function ExercisePreviewModal({
               alt={exercise.ejercicio}
             />
           ) : (
-            <p className="muted">No preview available.</p>
+            <p className="muted">{t("sessions.preview.noPreview")}</p>
           )}
         </div>
       </div>
@@ -656,8 +670,9 @@ function ExercisePreviewModal({
 }
 
 function StarRow({ value }: { value: number }) {
+  const { t } = useTranslation();
   return (
-    <span className="star-row readonly" aria-label={`${value} of 5`}>
+    <span className="star-row readonly" aria-label={t("sessions.rating.outOf", { value })}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Star
           key={i}
@@ -673,6 +688,7 @@ function StarRow({ value }: { value: number }) {
 // ---------- TRAINER VIEW ----------
 
 function TrainerSessionsView({ accessToken }: { accessToken: string }) {
+  const { t } = useTranslation();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
@@ -686,7 +702,7 @@ function TrainerSessionsView({ accessToken }: { accessToken: string }) {
         if (!cancelled) setClients(result);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load clients.");
+        if (!cancelled) setError(err instanceof Error ? err.message : t("sessions.errorLoadClients"));
       })
       .finally(() => {
         if (!cancelled) setIsLoadingClients(false);
@@ -694,23 +710,23 @@ function TrainerSessionsView({ accessToken }: { accessToken: string }) {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [accessToken, t]);
 
   return (
-    <section className="module-stack" aria-label="Plan sessions">
+    <section className="module-stack" aria-label={t("sessions.ariaLabel")}>
       <header className="module-header">
         <div>
-          <h1>Plan Sessions</h1>
-          <p>Review the workouts your clients have logged. Read-only.</p>
+          <h1>{t("sessions.title")}</h1>
+          <p>{t("sessions.trainerSubtitle")}</p>
         </div>
       </header>
 
       {error ? <p className="error-text">{error}</p> : null}
 
       {isLoadingClients ? (
-        <p>Loading clients...</p>
+        <p>{t("sessions.loadingClients")}</p>
       ) : clients.length === 0 ? (
-        <p className="muted">No clients assigned yet.</p>
+        <p className="muted">{t("sessions.noClients")}</p>
       ) : selectedClientId === null ? (
         <ClientPickerList clients={clients} onSelect={setSelectedClientId} />
       ) : (
@@ -731,6 +747,7 @@ function ClientPickerList({
   clients: Client[];
   onSelect: (id: number) => void;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -748,11 +765,11 @@ function ClientPickerList({
 
   return (
     <>
-      <section className="client-toolbar" aria-label="Client filters">
+      <section className="client-toolbar" aria-label={t("sessions.filtersLabel")}>
         <label className="search-field">
           <Search size={18} />
           <input
-            placeholder="Search by name, username, email, or focus"
+            placeholder={t("sessions.searchPlaceholder")}
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -761,7 +778,7 @@ function ClientPickerList({
       </section>
 
       {filtered.length === 0 ? (
-        <p className="muted">No clients match your search.</p>
+        <p className="muted">{t("sessions.noClientMatch")}</p>
       ) : (
         <section className="clients-grid">
           {filtered.map((client) => (
@@ -777,7 +794,7 @@ function ClientPickerList({
               </div>
               {client.relation_description ? (
                 <div className="client-card-footer">
-                  <span>Focus</span>
+                  <span>{t("sessions.focusLabel")}</span>
                   <strong>{client.relation_description}</strong>
                 </div>
               ) : null}
@@ -786,7 +803,7 @@ function ClientPickerList({
                 onClick={() => onSelect(client.id)}
                 type="button"
               >
-                View sessions <ChevronRight size={16} />
+                {t("sessions.viewSessions")} <ChevronRight size={16} />
               </button>
             </article>
           ))}
@@ -805,6 +822,7 @@ function TrainerClientSessions({
   client: Client;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [planId, setPlanId] = useState<number | null>(null);
@@ -826,7 +844,7 @@ function TrainerClientSessions({
         setDayKey(firstDay);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load plans.");
+        if (!cancelled) setError(err instanceof Error ? err.message : t("sessions.errorLoadPlans"));
       })
       .finally(() => {
         if (!cancelled) setIsLoadingPlans(false);
@@ -834,7 +852,7 @@ function TrainerClientSessions({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, client.id]);
+  }, [accessToken, client.id, t]);
 
   useEffect(() => {
     if (planId === null || !dayKey) {
@@ -848,7 +866,7 @@ function TrainerClientSessions({
         if (!cancelled) setSessions(result);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load sessions.");
+        if (!cancelled) setError(err instanceof Error ? err.message : t("sessions.errorLoadSessions"));
       })
       .finally(() => {
         if (!cancelled) setIsLoadingSessions(false);
@@ -856,7 +874,7 @@ function TrainerClientSessions({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, client.id, planId, dayKey]);
+  }, [accessToken, client.id, planId, dayKey, t]);
 
   const plan = useMemo(() => plans.find((p) => p.id === planId) ?? null, [plans, planId]);
   const dayKeys = useMemo(() => (plan ? Object.keys(plan.content).sort() : []), [plan]);
@@ -864,7 +882,7 @@ function TrainerClientSessions({
   return (
     <>
       <button className="secondary-button back-button" onClick={onBack} type="button">
-        Back to clients
+        {t("sessions.backToClients")}
       </button>
 
       <header className="detail-header">
@@ -875,7 +893,9 @@ function TrainerClientSessions({
           <h2>{client.full_name}</h2>
           <p className="muted">
             @{client.username}
-            {client.relation_description ? ` · Focus: ${client.relation_description}` : ""}
+            {client.relation_description
+              ? ` · ${t("sessions.clientFocusInline", { value: client.relation_description })}`
+              : ""}
           </p>
         </div>
       </header>
@@ -883,14 +903,14 @@ function TrainerClientSessions({
       {error ? <p className="error-text">{error}</p> : null}
 
       {isLoadingPlans ? (
-        <p>Loading plans...</p>
+        <p>{t("sessions.loadingPlans")}</p>
       ) : plans.length === 0 ? (
-        <p className="muted">This client doesn't have any plans yet.</p>
+        <p className="muted">{t("sessions.noPlans")}</p>
       ) : (
         <>
           {plans.length > 1 ? (
             <label className="field inline-field">
-              <span>Plan</span>
+              <span>{t("sessions.planLabel")}</span>
               <select
                 value={planId ?? ""}
                 onChange={(event) => {
@@ -910,23 +930,23 @@ function TrainerClientSessions({
           ) : null}
 
           {dayKeys.length === 0 ? (
-            <p className="muted">This plan doesn't have any days yet.</p>
+            <p className="muted">{t("sessions.planNoDaysTrainer")}</p>
           ) : (
             <>
               <DayTabs days={dayKeys} active={dayKey} onSelect={setDayKey} />
 
               <section className="panel">
                 <div className="panel-header">
-                  <h3>{prettyDayLabel(dayKey)}</h3>
+                  <h3>{prettyDayLabel(dayKey, t)}</h3>
                   <span>
                     {isLoadingSessions
-                      ? "Loading sessions..."
-                      : `${sessions.length} recent session(s)`}
+                      ? t("sessions.loadingSessions")
+                      : t("sessions.recentSessions", { count: sessions.length })}
                   </span>
                 </div>
 
                 {!isLoadingSessions && sessions.length === 0 ? (
-                  <p className="muted">No sessions logged for this day yet.</p>
+                  <p className="muted">{t("sessions.noSessions")}</p>
                 ) : null}
 
                 <div className="session-list">
@@ -936,7 +956,7 @@ function TrainerClientSessions({
                         <strong>{session.session_date}</strong>
                         <div className="session-row-meta">
                           <span className={`status-pill ${session.completed ? "status-approved" : "status-draft"}`}>
-                            {session.completed ? "Completed" : "In progress"}
+                            {session.completed ? t("sessions.statusCompleted") : t("sessions.statusInProgress")}
                           </span>
                           {session.rating ? <StarRow value={session.rating} /> : null}
                         </div>
@@ -977,6 +997,7 @@ function DayTabs({
   onSelect: (day: string) => void;
   completionMap?: Map<string, boolean>;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="day-tabs" role="tablist">
       {days.map((day) => {
@@ -990,8 +1011,8 @@ function DayTabs({
             onClick={() => onSelect(day)}
             type="button"
           >
-            <span>{prettyDayLabel(day)}</span>
-            {isDone ? <CheckCircle2 size={14} aria-label="Completed this week" /> : null}
+            <span>{prettyDayLabel(day, t)}</span>
+            {isDone ? <CheckCircle2 size={14} aria-label={t("sessions.completedAria")} /> : null}
           </button>
         );
       })}
@@ -1056,10 +1077,10 @@ function summarize(entry: PerformanceEntry | ExerciseEntry | undefined): string 
 }
 
 
-function prettyDayLabel(dayKey: string): string {
-  if (!dayKey) return "Day";
+function prettyDayLabel(dayKey: string, t: TFunction): string {
+  if (!dayKey) return t("sessions.dayLabelFallback");
   const match = dayKey.match(/^dia[_-]?(\d+)$/i);
-  if (match) return `Día ${match[1]}`;
+  if (match) return t("sessions.dayLabel", { number: match[1] });
   return dayKey;
 }
 

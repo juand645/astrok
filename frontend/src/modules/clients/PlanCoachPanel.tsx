@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Send, Sparkles, Trash2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   ChatMessage,
   ClientDetail,
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: Props) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -51,7 +53,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
         setDraftPlan(response.plan);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send the message.");
+      setError(err instanceof Error ? err.message : t("clients.coach.errorSend"));
     } finally {
       setIsSending(false);
     }
@@ -81,7 +83,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
       });
       onPlanCreated(created);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the plan.");
+      setError(err instanceof Error ? err.message : t("clients.coach.errorCreate"));
       setIsApplying(false);
       setPendingApply(false);
     }
@@ -93,11 +95,11 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
     : 0;
 
   return (
-    <section className="panel coach-panel" aria-label="Plan coach chat">
+    <section className="panel coach-panel" aria-label={t("clients.coach.ariaLabel")}>
       <div className="panel-header">
         <div className="coach-card-header">
           <Sparkles size={16} />
-          <span>Plan coach</span>
+          <span>{t("clients.coach.heading")}</span>
         </div>
         <div className="coach-panel-actions">
           {messages.length > 0 ? (
@@ -105,8 +107,8 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
               type="button"
               className="icon-button"
               onClick={clearConversation}
-              aria-label="Clear conversation"
-              title="Clear conversation"
+              aria-label={t("clients.coach.clearConversation")}
+              title={t("clients.coach.clearConversation")}
               disabled={isSending || isApplying}
             >
               <Trash2 size={16} />
@@ -116,7 +118,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
             type="button"
             className="icon-button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X size={16} />
           </button>
@@ -128,25 +130,26 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
       <div className="chat-log" ref={scrollRef}>
         {messages.length === 0 ? (
           <p className="muted center">
-            Start by describing the plan you want — focus, weekly frequency, equipment, any
-            limitations. The coach can fill in missing details from {client.full_name}&apos;s profile.
+            {t("clients.coach.starterHint", { name: client.full_name })}
           </p>
         ) : (
           messages.map((msg, index) => (
             <article
               key={index}
               className={`chat-bubble chat-bubble-${msg.role}`}
-              aria-label={msg.role === "user" ? "Your message" : "Coach reply"}
+              aria-label={msg.role === "user" ? t("clients.coach.yourMessage") : t("clients.coach.coachReply")}
             >
-              <span className="chat-bubble-role">{msg.role === "user" ? "You" : "Coach"}</span>
+              <span className="chat-bubble-role">
+                {msg.role === "user" ? t("clients.coach.you") : t("clients.coach.coach")}
+              </span>
               <p>{msg.content}</p>
             </article>
           ))
         )}
         {isSending ? (
           <article className="chat-bubble chat-bubble-assistant pending">
-            <span className="chat-bubble-role">Coach</span>
-            <p className="muted">Thinking…</p>
+            <span className="chat-bubble-role">{t("clients.coach.coach")}</span>
+            <p className="muted">{t("clients.coach.thinking")}</p>
           </article>
         ) : null}
       </div>
@@ -155,13 +158,13 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
         <div className="plan-draft-card">
           <div className="coach-card-header">
             <Sparkles size={14} />
-            <span>Plan ready</span>
+            <span>{t("clients.coach.planReady")}</span>
           </div>
           <div>
             <strong>{draftPlan.title}</strong>
             {draftPlan.description ? <p className="muted">{draftPlan.description}</p> : null}
             <p className="muted">
-              {dayCount} day(s), {exerciseCount} exercise(s)
+              {t("clients.coach.planMeta", { days: dayCount, exercises: exerciseCount })}
             </p>
           </div>
           <div className="panel-actions">
@@ -171,7 +174,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
               onClick={() => setDraftPlan(null)}
               disabled={isApplying}
             >
-              Discard draft
+              {t("clients.coach.discardDraft")}
             </button>
             <button
               type="button"
@@ -179,7 +182,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
               onClick={() => setPendingApply(true)}
               disabled={isApplying}
             >
-              {isApplying ? "Creating…" : "Apply as new plan"}
+              {isApplying ? t("clients.coach.applying") : t("clients.coach.applyAsNewPlan")}
             </button>
           </div>
         </div>
@@ -191,7 +194,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
         <input
           type="text"
           value={input}
-          placeholder="Ask the coach or describe the plan…"
+          placeholder={t("clients.coach.inputPlaceholder")}
           onChange={(e) => setInput(e.target.value)}
           disabled={isSending || isApplying}
         />
@@ -199,10 +202,10 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
           type="submit"
           className="primary-button"
           disabled={isSending || isApplying || !input.trim()}
-          aria-label="Send"
+          aria-label={t("clients.coach.send")}
         >
           <Send size={16} />
-          Send
+          {t("clients.coach.send")}
         </button>
       </form>
 
@@ -210,12 +213,12 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
         <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={() => setPendingApply(false)}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create this plan?</h2>
+              <h2>{t("clients.coach.confirmTitle")}</h2>
               <button
                 type="button"
                 className="icon-button"
                 onClick={() => setPendingApply(false)}
-                aria-label="Close"
+                aria-label={t("common.close")}
               >
                 <X size={16} />
               </button>
@@ -224,10 +227,10 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
               <strong>{draftPlan.title}</strong>
               <br />
               <span className="muted">
-                {dayCount} day(s), {exerciseCount} exercise(s) · status: draft
+                {t("clients.coach.planMetaStatus", { days: dayCount, exercises: exerciseCount })}
               </span>
             </p>
-            <p className="muted">It will appear in this client&apos;s plans and you can keep editing it.</p>
+            <p className="muted">{t("clients.coach.confirmHint")}</p>
             <div className="modal-actions">
               <button
                 type="button"
@@ -235,7 +238,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
                 onClick={() => setPendingApply(false)}
                 disabled={isApplying}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -243,7 +246,7 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
                 onClick={applyPlan}
                 disabled={isApplying}
               >
-                {isApplying ? "Creating…" : "Create plan"}
+                {isApplying ? t("clients.coach.applying") : t("clients.coach.confirmCreate")}
               </button>
             </div>
           </div>
@@ -254,27 +257,30 @@ export function PlanCoachPanel({ accessToken, client, onPlanCreated, onClose }: 
 }
 
 function ClientContextCard({ client }: { client: ClientDetail }) {
+  const { t } = useTranslation();
   const age = client.birth_date ? computeAge(client.birth_date) : null;
   const measures = client.measures ?? {};
   const peso = measures["peso"];
   const altura = measures["altura"];
 
   const lines: string[] = [];
-  if (age !== null) lines.push(`age ${age}`);
+  if (age !== null) lines.push(t("clients.coach.ageWithValue", { value: age }));
   if (peso !== undefined) lines.push(`${peso} kg`);
   if (altura !== undefined) lines.push(`${altura} cm`);
 
   return (
     <div className="coach-context">
-      <strong>The coach knows:</strong>
+      <strong>{t("clients.coach.contextKnows")}</strong>
       <ul>
         <li>
           {client.full_name}
           {lines.length > 0 ? ` · ${lines.join(" · ")}` : ""}
         </li>
-        {client.description ? <li>Goal / notes: {client.description}</li> : null}
+        {client.description ? (
+          <li>{t("clients.coach.contextGoal", { value: client.description })}</li>
+        ) : null}
       </ul>
-      <p className="muted">Override anything by mentioning it in your message.</p>
+      <p className="muted">{t("clients.coach.contextHint")}</p>
     </div>
   );
 }

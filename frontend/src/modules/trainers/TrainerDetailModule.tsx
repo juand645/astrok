@@ -10,6 +10,7 @@ import {
   UserCircle,
   Users,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   TrainerDetail,
   deleteTrainer,
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export function TrainerDetailModule({ accessToken, trainerId, onBack, onDeleted }: Props) {
+  const { t, i18n } = useTranslation();
   const [trainer, setTrainer] = useState<TrainerDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function TrainerDetailModule({ accessToken, trainerId, onBack, onDeleted 
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load trainer.");
+          setError(err instanceof Error ? err.message : t("trainers.detail.errorLoad"));
         }
       })
       .finally(() => {
@@ -49,34 +51,34 @@ export function TrainerDetailModule({ accessToken, trainerId, onBack, onDeleted 
     return () => {
       cancelled = true;
     };
-  }, [accessToken, trainerId, reloadKey]);
+  }, [accessToken, trainerId, reloadKey, t]);
 
   if (isLoading) {
     return (
-      <section className="module-stack" aria-label="Trainer detail">
-        <p>Loading trainer...</p>
+      <section className="module-stack" aria-label={t("trainers.detail.ariaLabel")}>
+        <p>{t("trainers.detail.loading")}</p>
       </section>
     );
   }
 
   if (error || !trainer) {
     return (
-      <section className="module-stack" aria-label="Trainer detail">
+      <section className="module-stack" aria-label={t("trainers.detail.ariaLabel")}>
         <header className="module-header">
           <button type="button" className="back-button secondary-button" onClick={onBack}>
-            <ArrowLeft size={16} /> Back to trainers
+            <ArrowLeft size={16} /> {t("trainers.detail.back")}
           </button>
         </header>
-        <p className="error-text">{error ?? "Trainer not found."}</p>
+        <p className="error-text">{error ?? t("trainers.detail.notFound")}</p>
       </section>
     );
   }
 
   return (
-    <section className="module-stack" aria-label="Trainer detail">
+    <section className="module-stack" aria-label={t("trainers.detail.ariaLabel")}>
       <header className="module-header">
         <button type="button" className="back-button secondary-button" onClick={onBack}>
-          <ArrowLeft size={16} /> Back to trainers
+          <ArrowLeft size={16} /> {t("trainers.detail.back")}
         </button>
       </header>
 
@@ -103,10 +105,16 @@ export function TrainerDetailModule({ accessToken, trainerId, onBack, onDeleted 
               </span>
             ) : null}
             {trainer.birth_date ? (
-              <span>Born {formatBirthDate(trainer.birth_date)}</span>
+              <span>
+                {t("trainers.detail.born", {
+                  date: formatBirthDate(trainer.birth_date, i18n.language, (age) =>
+                    t("trainers.list.age", { age }),
+                  ),
+                })}
+              </span>
             ) : null}
             <span className={`status-pill ${trainer.active ? "status-approved" : "status-inactive"}`}>
-              {trainer.active ? "Active" : "Inactive"}
+              {trainer.active ? t("trainers.detail.statusActive") : t("trainers.detail.statusInactive")}
             </span>
           </div>
         </div>
@@ -138,6 +146,7 @@ function TrainerEditorPanel({
   trainer: TrainerDetail;
   onSaved: (trainer: TrainerDetail) => void;
 }) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState(trainer.full_name);
   const [email, setEmail] = useState(trainer.email);
   const [personalNumber, setPersonalNumber] = useState(trainer.personal_number ?? "");
@@ -171,7 +180,7 @@ function TrainerEditorPanel({
     const trimmedName = fullName.trim();
     if (!trimmedName) {
       setFeedbackKind("error");
-      setFeedback("Full name is required.");
+      setFeedback(t("trainers.detail.errorRequired"));
       return;
     }
     setIsSaving(true);
@@ -186,10 +195,10 @@ function TrainerEditorPanel({
       });
       onSaved({ ...trainer, ...updated });
       setFeedbackKind("ok");
-      setFeedback("Saved.");
+      setFeedback(t("trainers.detail.saved"));
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Save failed.");
+      setFeedback(err instanceof Error ? err.message : t("trainers.detail.errorSave"));
     } finally {
       setIsSaving(false);
     }
@@ -200,13 +209,13 @@ function TrainerEditorPanel({
       <div className="panel-header">
         <div className="coach-card-header">
           <UserCircle size={16} />
-          <span>Profile</span>
+          <span>{t("trainers.detail.profileHeading")}</span>
         </div>
       </div>
 
       <div className="form-grid">
         <label className="field">
-          <span>Full name *</span>
+          <span>{t("trainers.detail.fullName")}</span>
           <input
             type="text"
             value={fullName}
@@ -215,7 +224,7 @@ function TrainerEditorPanel({
           />
         </label>
         <label className="field">
-          <span>Email *</span>
+          <span>{t("trainers.detail.email")}</span>
           <input
             type="email"
             value={email}
@@ -224,25 +233,25 @@ function TrainerEditorPanel({
           />
         </label>
         <label className="field">
-          <span>Personal number</span>
+          <span>{t("trainers.detail.personalNumber")}</span>
           <input
             type="tel"
             value={personalNumber}
-            placeholder="e.g. +52 555 123 4567"
+            placeholder={t("trainers.detail.personalNumberPlaceholder")}
             onChange={(event) => setPersonalNumber(event.target.value)}
           />
         </label>
         <label className="field">
-          <span>National ID number</span>
+          <span>{t("trainers.detail.idNumber")}</span>
           <input
             type="text"
             value={idNumber}
-            placeholder="e.g. CURP / DNI / passport"
+            placeholder={t("trainers.detail.idNumberPlaceholder")}
             onChange={(event) => setIdNumber(event.target.value)}
           />
         </label>
         <label className="field">
-          <span>Birth date</span>
+          <span>{t("trainers.detail.birthDate")}</span>
           <input
             type="date"
             value={birthDate}
@@ -252,18 +261,18 @@ function TrainerEditorPanel({
       </div>
 
       <label className="field">
-        <span>Description</span>
+        <span>{t("trainers.detail.description")}</span>
         <textarea
           rows={3}
           value={description}
-          placeholder="Specialization, years of experience, anything that helps identify them."
+          placeholder={t("trainers.detail.descriptionPlaceholder")}
           onChange={(event) => setDescription(event.target.value)}
         />
       </label>
 
       <div className="panel-actions">
         <button type="submit" className="primary-button" disabled={isSaving || !dirty}>
-          <Save size={16} /> {isSaving ? "Saving…" : "Save changes"}
+          <Save size={16} /> {isSaving ? t("trainers.detail.saving") : t("trainers.detail.save")}
         </button>
       </div>
 
@@ -275,20 +284,21 @@ function TrainerEditorPanel({
 }
 
 function TrainerClientsPanel({ trainer }: { trainer: TrainerDetail }) {
+  const { t } = useTranslation();
   return (
     <section className="panel">
       <div className="panel-header">
         <div className="coach-card-header">
           <Users size={16} />
-          <span>Assigned clients</span>
+          <span>{t("trainers.detail.clientsHeading")}</span>
         </div>
         <span className="muted">
-          {trainer.clients.length} active · transfer from the Clients tab if needed
+          {t("trainers.detail.clientsHint", { count: trainer.clients.length })}
         </span>
       </div>
 
       {trainer.clients.length === 0 ? (
-        <p className="muted">No active clients assigned to this trainer.</p>
+        <p className="muted">{t("trainers.detail.noClients")}</p>
       ) : (
         <ul className="parq-history-list">
           {trainer.clients.map((client) => (
@@ -316,15 +326,12 @@ function TrainerHeaderActions({
   onDeleted: () => void;
   onReactivated: () => void;
 }) {
+  const { t } = useTranslation();
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
-    if (
-      !window.confirm(
-        `Soft-delete ${trainer.full_name}? They will no longer be available, but can be reactivated later.`,
-      )
-    ) {
+    if (!window.confirm(t("trainers.detail.confirmDelete", { name: trainer.full_name }))) {
       return;
     }
     setIsWorking(true);
@@ -333,7 +340,7 @@ function TrainerHeaderActions({
       await deleteTrainer(accessToken, trainer.id);
       onDeleted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
+      setError(err instanceof Error ? err.message : t("trainers.detail.errorDelete"));
       setIsWorking(false);
     }
   }
@@ -345,7 +352,7 @@ function TrainerHeaderActions({
       await updateTrainer(accessToken, trainer.id, { active: true });
       onReactivated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reactivate failed.");
+      setError(err instanceof Error ? err.message : t("trainers.detail.errorReactivate"));
     } finally {
       setIsWorking(false);
     }
@@ -360,7 +367,7 @@ function TrainerHeaderActions({
           onClick={handleDelete}
           disabled={isWorking}
         >
-          <Trash2 size={16} /> {isWorking ? "Working…" : "Delete trainer"}
+          <Trash2 size={16} /> {isWorking ? t("trainers.detail.working") : t("trainers.detail.delete")}
         </button>
       ) : (
         <button
@@ -369,7 +376,7 @@ function TrainerHeaderActions({
           onClick={handleReactivate}
           disabled={isWorking}
         >
-          <RefreshCw size={16} /> {isWorking ? "Working…" : "Reactivate trainer"}
+          <RefreshCw size={16} /> {isWorking ? t("trainers.detail.working") : t("trainers.detail.reactivate")}
         </button>
       )}
       {error ? <span className="error-text">{error}</span> : null}
@@ -387,9 +394,13 @@ function getInitials(fullName: string) {
     .toUpperCase();
 }
 
-function formatBirthDate(isoDate: string) {
+function formatBirthDate(
+  isoDate: string,
+  locale: string,
+  ageLabel: (age: number) => string,
+) {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return isoDate;
   const age = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  return `${date.toLocaleDateString()} (age ${age})`;
+  return `${date.toLocaleDateString(locale)} (${ageLabel(age)})`;
 }

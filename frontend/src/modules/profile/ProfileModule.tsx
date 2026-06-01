@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { KeyRound, Ruler, Save, Trash2, Upload, UserCircle } from "lucide-react";
+import { Globe, KeyRound, Ruler, Save, Trash2, Upload, UserCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   AuthUser,
   ClientDetail,
@@ -17,13 +18,14 @@ type Props = {
 };
 
 export function ProfileModule({ accessToken, currentUser, onProfileUpdated }: Props) {
+  const { t } = useTranslation();
   const isClient = currentUser.roles.includes("client");
   return (
-    <section className="module-stack" aria-label="Profile">
+    <section className="module-stack" aria-label={t("profile.ariaLabel")}>
       <header className="module-header">
         <div>
-          <h1>Profile</h1>
-          <p>Update your details, change your password, and review your data.</p>
+          <h1>{t("profile.title")}</h1>
+          <p>{t("profile.subtitle")}</p>
         </div>
       </header>
 
@@ -32,6 +34,8 @@ export function ProfileModule({ accessToken, currentUser, onProfileUpdated }: Pr
         currentUser={currentUser}
         onProfileUpdated={onProfileUpdated}
       />
+
+      <LanguagePanel />
 
       <BasicInfoPanel
         accessToken={accessToken}
@@ -48,6 +52,36 @@ export function ProfileModule({ accessToken, currentUser, onProfileUpdated }: Pr
   );
 }
 
+// ---------- Language switcher ----------
+
+function LanguagePanel() {
+  const { t, i18n } = useTranslation();
+
+  function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    void i18n.changeLanguage(event.target.value);
+  }
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div className="coach-card-header">
+          <Globe size={16} />
+          <span>{t("profile.language")}</span>
+        </div>
+        <span className="muted">{t("profile.languageHint")}</span>
+      </div>
+
+      <label className="field">
+        <span>{t("profile.language")}</span>
+        <select value={i18n.resolvedLanguage ?? "en"} onChange={handleChange}>
+          <option value="en">{t("profile.english")}</option>
+          <option value="es">{t("profile.spanish")}</option>
+        </select>
+      </label>
+    </section>
+  );
+}
+
 // ---------- Avatar ----------
 
 function AvatarPanel({
@@ -59,6 +93,7 @@ function AvatarPanel({
   currentUser: AuthUser;
   onProfileUpdated: (user: AuthUser) => void;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -75,10 +110,10 @@ function AvatarPanel({
       const updated = await uploadMyAvatar(accessToken, file);
       onProfileUpdated(updated);
       setFeedbackKind("ok");
-      setFeedback("Photo updated.");
+      setFeedback(t("profile.avatar.photoUpdated"));
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Upload failed.");
+      setFeedback(err instanceof Error ? err.message : t("profile.avatar.errorUpload"));
     } finally {
       setIsWorking(false);
     }
@@ -91,10 +126,10 @@ function AvatarPanel({
       const updated = await deleteMyAvatar(accessToken);
       onProfileUpdated(updated);
       setFeedbackKind("ok");
-      setFeedback("Photo removed.");
+      setFeedback(t("profile.avatar.photoRemoved"));
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Remove failed.");
+      setFeedback(err instanceof Error ? err.message : t("profile.avatar.errorRemove"));
     } finally {
       setIsWorking(false);
     }
@@ -105,9 +140,9 @@ function AvatarPanel({
       <div className="panel-header">
         <div className="coach-card-header">
           <UserCircle size={16} />
-          <span>Profile picture</span>
+          <span>{t("profile.avatar.heading")}</span>
         </div>
-        <span className="muted">Shown in your session card and on cards.</span>
+        <span className="muted">{t("profile.avatar.hint")}</span>
       </div>
 
       <div className="avatar-panel-body">
@@ -133,7 +168,11 @@ function AvatarPanel({
             disabled={isWorking}
           >
             <Upload size={16} />
-            {isWorking ? "Working…" : currentUser.photo_url ? "Replace photo" : "Upload photo"}
+            {isWorking
+              ? t("profile.avatar.working")
+              : currentUser.photo_url
+                ? t("profile.avatar.replace")
+                : t("profile.avatar.upload")}
           </button>
           {currentUser.photo_url ? (
             <button
@@ -142,7 +181,7 @@ function AvatarPanel({
               onClick={handleRemove}
               disabled={isWorking}
             >
-              <Trash2 size={16} /> Remove
+              <Trash2 size={16} /> {t("profile.avatar.remove")}
             </button>
           ) : null}
         </div>
@@ -176,6 +215,7 @@ function BasicInfoPanel({
   currentUser: AuthUser;
   onProfileUpdated: (user: AuthUser) => void;
 }) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState(currentUser.full_name);
   const [email, setEmail] = useState(currentUser.email);
   const [personalNumber, setPersonalNumber] = useState(currentUser.personal_number ?? "");
@@ -210,7 +250,7 @@ function BasicInfoPanel({
     const trimmedName = fullName.trim();
     if (!trimmedName) {
       setFeedbackKind("error");
-      setFeedback("Full name is required.");
+      setFeedback(t("profile.basic.errorRequired"));
       return;
     }
 
@@ -226,10 +266,10 @@ function BasicInfoPanel({
       });
       onProfileUpdated(updated);
       setFeedbackKind("ok");
-      setFeedback("Profile updated.");
+      setFeedback(t("profile.basic.saved"));
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Update failed.");
+      setFeedback(err instanceof Error ? err.message : t("profile.basic.errorSave"));
     } finally {
       setIsSaving(false);
     }
@@ -240,14 +280,14 @@ function BasicInfoPanel({
       <div className="panel-header">
         <div className="coach-card-header">
           <UserCircle size={16} />
-          <span>Basic info</span>
+          <span>{t("profile.basic.heading")}</span>
         </div>
         <span className="muted">@{currentUser.username}</span>
       </div>
 
       <div className="form-grid">
         <label className="field">
-          <span>Full name *</span>
+          <span>{t("profile.basic.fullName")}</span>
           <input
             type="text"
             value={fullName}
@@ -256,7 +296,7 @@ function BasicInfoPanel({
           />
         </label>
         <label className="field">
-          <span>Email *</span>
+          <span>{t("profile.basic.email")}</span>
           <input
             type="email"
             value={email}
@@ -265,25 +305,25 @@ function BasicInfoPanel({
           />
         </label>
         <label className="field">
-          <span>Personal number</span>
+          <span>{t("profile.basic.personalNumber")}</span>
           <input
             type="tel"
             value={personalNumber}
-            placeholder="e.g. +52 555 123 4567"
+            placeholder={t("profile.basic.personalNumberPlaceholder")}
             onChange={(event) => setPersonalNumber(event.target.value)}
           />
         </label>
         <label className="field">
-          <span>National ID number</span>
+          <span>{t("profile.basic.idNumber")}</span>
           <input
             type="text"
             value={idNumber}
-            placeholder="e.g. CURP / DNI / passport"
+            placeholder={t("profile.basic.idNumberPlaceholder")}
             onChange={(event) => setIdNumber(event.target.value)}
           />
         </label>
         <label className="field">
-          <span>Birth date</span>
+          <span>{t("profile.basic.birthDate")}</span>
           <input
             type="date"
             value={birthDate}
@@ -293,11 +333,11 @@ function BasicInfoPanel({
       </div>
 
       <label className="field">
-        <span>Description</span>
+        <span>{t("profile.basic.description")}</span>
         <textarea
           rows={3}
           value={description}
-          placeholder="Bio, goals, or anything you want to share."
+          placeholder={t("profile.basic.descriptionPlaceholder")}
           onChange={(event) => setDescription(event.target.value)}
         />
       </label>
@@ -308,7 +348,7 @@ function BasicInfoPanel({
           className="primary-button"
           disabled={isSaving || !dirty}
         >
-          <Save size={16} /> {isSaving ? "Saving…" : "Save changes"}
+          <Save size={16} /> {isSaving ? t("profile.basic.saving") : t("profile.basic.save")}
         </button>
       </div>
 
@@ -322,6 +362,7 @@ function BasicInfoPanel({
 // ---------- Password ----------
 
 function PasswordPanel({ accessToken }: { accessToken: string }) {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -335,12 +376,12 @@ function PasswordPanel({ accessToken }: { accessToken: string }) {
 
     if (newPassword.length < 8) {
       setFeedbackKind("error");
-      setFeedback("New password must be at least 8 characters.");
+      setFeedback(t("profile.password.errorShort"));
       return;
     }
     if (newPassword !== confirmPassword) {
       setFeedbackKind("error");
-      setFeedback("New password and confirmation don't match.");
+      setFeedback(t("profile.password.errorMismatch"));
       return;
     }
 
@@ -354,10 +395,10 @@ function PasswordPanel({ accessToken }: { accessToken: string }) {
       setNewPassword("");
       setConfirmPassword("");
       setFeedbackKind("ok");
-      setFeedback("Password changed.");
+      setFeedback(t("profile.password.saved"));
     } catch (err) {
       setFeedbackKind("error");
-      setFeedback(err instanceof Error ? err.message : "Could not change password.");
+      setFeedback(err instanceof Error ? err.message : t("profile.password.errorSave"));
     } finally {
       setIsSaving(false);
     }
@@ -368,13 +409,13 @@ function PasswordPanel({ accessToken }: { accessToken: string }) {
       <div className="panel-header">
         <div className="coach-card-header">
           <KeyRound size={16} />
-          <span>Change password</span>
+          <span>{t("profile.password.heading")}</span>
         </div>
       </div>
 
       <div className="form-grid">
         <label className="field">
-          <span>Current password *</span>
+          <span>{t("profile.password.current")}</span>
           <input
             type="password"
             value={currentPassword}
@@ -385,7 +426,7 @@ function PasswordPanel({ accessToken }: { accessToken: string }) {
         </label>
         <span aria-hidden="true" />
         <label className="field">
-          <span>New password * (min 8 chars)</span>
+          <span>{t("profile.password.new")}</span>
           <input
             type="password"
             value={newPassword}
@@ -396,7 +437,7 @@ function PasswordPanel({ accessToken }: { accessToken: string }) {
           />
         </label>
         <label className="field">
-          <span>Confirm new password *</span>
+          <span>{t("profile.password.confirm")}</span>
           <input
             type="password"
             value={confirmPassword}
@@ -414,7 +455,7 @@ function PasswordPanel({ accessToken }: { accessToken: string }) {
           className="primary-button"
           disabled={isSaving || !currentPassword || !newPassword || !confirmPassword}
         >
-          <Save size={16} /> {isSaving ? "Saving…" : "Change password"}
+          <Save size={16} /> {isSaving ? t("profile.password.saving") : t("profile.password.save")}
         </button>
       </div>
 
@@ -434,6 +475,7 @@ function MeasuresPanel({
   accessToken: string;
   clientId: number;
 }) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<ClientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -448,7 +490,7 @@ function MeasuresPanel({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load measurements.");
+          setError(err instanceof Error ? err.message : t("profile.measures.errorLoad"));
         }
       })
       .finally(() => {
@@ -457,7 +499,7 @@ function MeasuresPanel({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, clientId]);
+  }, [accessToken, clientId, t]);
 
   const rows = useMemo(() => {
     if (!detail) return [];
@@ -472,18 +514,16 @@ function MeasuresPanel({
       <div className="panel-header">
         <div className="coach-card-header">
           <Ruler size={16} />
-          <span>Your measurements</span>
+          <span>{t("profile.measures.heading")}</span>
         </div>
-        <span className="muted">Read-only · your trainer maintains these</span>
+        <span className="muted">{t("profile.measures.hint")}</span>
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
-      {isLoading ? <p className="muted">Loading…</p> : null}
+      {isLoading ? <p className="muted">{t("profile.measures.loading")}</p> : null}
 
       {!isLoading && rows.length === 0 ? (
-        <p className="muted">
-          Tu profesional aún no ha registrado mediciones. Aparecerán aquí en cuanto las añada.
-        </p>
+        <p className="muted">{t("profile.measures.empty")}</p>
       ) : null}
 
       {rows.length > 0 ? (
@@ -491,15 +531,15 @@ function MeasuresPanel({
           <table className="detail-table">
             <thead>
               <tr>
-                <th>Field</th>
-                <th>Value</th>
+                <th>{t("profile.measures.field")}</th>
+                <th>{t("profile.measures.value")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.key}>
-                  <td data-label="Field">{row.key}</td>
-                  <td data-label="Value">{row.value}</td>
+                  <td data-label={t("profile.measures.field")}>{row.key}</td>
+                  <td data-label={t("profile.measures.value")}>{row.value}</td>
                 </tr>
               ))}
             </tbody>

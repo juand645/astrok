@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, IdCard, Mail, Phone, Plus, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   ClientDetail,
   PlanSummary,
@@ -28,6 +29,7 @@ export function ClientDetailModule({
   onBack,
   onDeleted,
 }: ClientDetailModuleProps) {
+  const { t, i18n } = useTranslation();
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +52,7 @@ export function ClientDetailModule({
       .catch((currentError) => {
         if (!cancelled) {
           setError(
-            currentError instanceof Error ? currentError.message : "Could not load client.",
+            currentError instanceof Error ? currentError.message : t("clients.detail.errorLoad"),
           );
         }
       })
@@ -63,7 +65,7 @@ export function ClientDetailModule({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, clientId]);
+  }, [accessToken, clientId, t]);
 
   function handlePlanSaved(updated: PlanSummary) {
     setPlans((current) => current.map((plan) => (plan.id === updated.id ? updated : plan)));
@@ -80,7 +82,7 @@ export function ClientDetailModule({
   if (isLoading) {
     return (
       <div className="detail-shell">
-        <p>Loading client...</p>
+        <p>{t("clients.detail.loading")}</p>
       </div>
     );
   }
@@ -89,17 +91,17 @@ export function ClientDetailModule({
     return (
       <div className="detail-shell">
         <button className="secondary-button" onClick={onBack}>
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> {t("common.back")}
         </button>
-        <p className="error-text">{error ?? "Client not available."}</p>
+        <p className="error-text">{error ?? t("clients.detail.notFound")}</p>
       </div>
     );
   }
 
   return (
-    <section className="detail-shell" aria-label="Client detail">
+    <section className="detail-shell" aria-label={t("clients.detail.ariaLabel")}>
       <button className="secondary-button back-button" onClick={onBack}>
-        <ArrowLeft size={16} /> Back to clients
+        <ArrowLeft size={16} /> {t("clients.detail.back")}
       </button>
 
       <header className="detail-header">
@@ -124,15 +126,23 @@ export function ClientDetailModule({
               </span>
             ) : null}
             {client.birth_date ? (
-              <span>Born {formatBirthDate(client.birth_date)}</span>
+              <span>
+                {t("clients.detail.born", {
+                  date: formatBirthDate(client.birth_date, i18n.language, (age) =>
+                    t("clients.list.age", { age }),
+                  ),
+                })}
+              </span>
             ) : null}
-            {client.relation_description ? <span>Focus: {client.relation_description}</span> : null}
+            {client.relation_description ? (
+              <span>{t("clients.detail.focusPrefix", { value: client.relation_description })}</span>
+            ) : null}
             <span
               className={`status-pill ${
                 client.active ? "status-approved" : "status-inactive"
               }`}
             >
-              {client.active ? "Active" : "Inactive"}
+              {client.active ? t("clients.detail.statusActive") : t("clients.detail.statusInactive")}
             </span>
           </div>
         </div>
@@ -161,20 +171,20 @@ export function ClientDetailModule({
 
       <section className="panel-stack">
         <div className="section-header">
-          <h2>Plans</h2>
+          <h2>{t("clients.detail.plansHeading")}</h2>
           {!isAddingPlan ? (
             <button
               type="button"
               className="primary-button"
               onClick={() => setIsAddingPlan(true)}
             >
-              <Plus size={16} /> Add plan
+              <Plus size={16} /> {t("clients.detail.addPlan")}
             </button>
           ) : null}
         </div>
 
         {plans.length === 0 && !isAddingPlan ? (
-          <p className="muted">No plans yet for this client.</p>
+          <p className="muted">{t("clients.detail.noPlans")}</p>
         ) : null}
 
         {isAddingPlan ? (
@@ -202,7 +212,7 @@ export function ClientDetailModule({
         ))}
       </section>
 
-      <section className="panel-stack" aria-label="Plan coach">
+      <section className="panel-stack" aria-label={t("clients.detail.coachAriaLabel")}>
         {!isCoachOpen ? (
           <div className="panel-actions">
             <button
@@ -210,7 +220,7 @@ export function ClientDetailModule({
               className="primary-button"
               onClick={() => setIsCoachOpen(true)}
             >
-              <Sparkles size={16} /> Generate a plan with AI
+              <Sparkles size={16} /> {t("clients.detail.generateWithAi")}
             </button>
           </div>
         ) : (

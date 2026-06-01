@@ -1,3 +1,4 @@
+import { TFunction } from "i18next";
 import { Circuito, ExerciseEntry, PlanContent } from "../../api";
 
 export type MeasureRow = {
@@ -15,13 +16,19 @@ export function getInitials(fullName: string): string {
     .toUpperCase();
 }
 
-export function formatBirthDate(isoDate: string): string {
+export function formatBirthDate(
+  isoDate: string,
+  locale?: string,
+  ageLabel?: (age: number) => string,
+): string {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) {
     return isoDate;
   }
   const age = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  return `${date.toLocaleDateString()} (age ${age})`;
+  const dateStr = date.toLocaleDateString(locale);
+  const ageStr = ageLabel ? ageLabel(age) : `age ${age}`;
+  return `${dateStr} (${ageStr})`;
 }
 
 export function statusClass(status: string): string {
@@ -30,10 +37,12 @@ export function statusClass(status: string): string {
   return "status-review";
 }
 
-export function prettyDayLabel(dayKey: string): string {
+export function prettyDayLabel(dayKey: string, t?: TFunction): string {
   if (!dayKey) return "Day";
   const match = dayKey.match(/^dia[_-]?(\d+)$/i);
-  if (match) return `Día ${match[1]}`;
+  if (match) {
+    return t ? t("clients.plan.dayLabel", { number: match[1] }) : `Día ${match[1]}`;
+  }
   return dayKey;
 }
 

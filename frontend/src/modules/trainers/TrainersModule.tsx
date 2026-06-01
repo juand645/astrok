@@ -10,6 +10,7 @@ import {
   Search,
   Users,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Trainer, fetchTrainers } from "../../api";
 
 type TrainersModuleProps = {
@@ -23,6 +24,7 @@ export function TrainersModule({
   onSelectTrainer,
   onCreateTrainer,
 }: TrainersModuleProps) {
+  const { t, i18n } = useTranslation();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [search, setSearch] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -40,7 +42,7 @@ export function TrainersModule({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load trainers.");
+          setError(err instanceof Error ? err.message : t("trainers.list.errorLoad"));
         }
       })
       .finally(() => {
@@ -50,7 +52,7 @@ export function TrainersModule({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, includeInactive]);
+  }, [accessToken, includeInactive, t]);
 
   const filtered = trainers.filter((trainer) => {
     const term = search.trim().toLowerCase();
@@ -63,23 +65,23 @@ export function TrainersModule({
   });
 
   return (
-    <section className="module-stack" aria-label="Trainers module">
+    <section className="module-stack" aria-label={t("trainers.list.ariaLabel")}>
       <header className="module-header">
         <div>
-          <h1>Trainers</h1>
-          <p>Every active trainer on the platform. {trainers.length} total.</p>
+          <h1>{t("trainers.list.title")}</h1>
+          <p>{t("trainers.list.subtitle", { count: trainers.length })}</p>
         </div>
         <button className="primary-button" onClick={onCreateTrainer} type="button">
           <Plus size={18} />
-          New trainer
+          {t("trainers.list.new")}
         </button>
       </header>
 
-      <section className="client-toolbar" aria-label="Trainer filters">
+      <section className="client-toolbar" aria-label={t("trainers.list.filtersLabel")}>
         <label className="search-field">
           <Search size={18} />
           <input
-            placeholder="Search by name, email, or username"
+            placeholder={t("trainers.list.searchPlaceholder")}
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -91,19 +93,19 @@ export function TrainersModule({
             checked={includeInactive}
             onChange={(event) => setIncludeInactive(event.target.checked)}
           />
-          Show inactive
+          {t("trainers.list.showInactive")}
         </label>
       </section>
 
       {error ? <p className="error-text">{error}</p> : null}
 
       {isLoading ? (
-        <p>Loading trainers...</p>
+        <p>{t("trainers.list.loading")}</p>
       ) : filtered.length === 0 ? (
         <p>
           {trainers.length === 0
-            ? "No trainers yet. Create the first one."
-            : "No trainers match your search."}
+            ? t("trainers.list.empty")
+            : t("trainers.list.noMatch")}
         </p>
       ) : (
         <section className="clients-grid">
@@ -121,7 +123,7 @@ export function TrainersModule({
                   <span>@{trainer.username}</span>
                 </div>
                 {!trainer.active ? (
-                  <span className="status-pill status-inactive">Inactive</span>
+                  <span className="status-pill status-inactive">{t("trainers.list.inactive")}</span>
                 ) : null}
               </div>
 
@@ -151,12 +153,14 @@ export function TrainersModule({
                 {trainer.birth_date ? (
                   <span>
                     <CalendarDays size={16} />
-                    {formatBirthDate(trainer.birth_date)}
+                    {formatBirthDate(trainer.birth_date, i18n.language, (age) =>
+                      t("trainers.list.age", { age }),
+                    )}
                   </span>
                 ) : null}
                 <span>
                   <Users size={16} />
-                  {trainer.active_client_count} active client(s)
+                  {t("trainers.list.activeClientCount", { count: trainer.active_client_count })}
                 </span>
               </div>
 
@@ -166,7 +170,7 @@ export function TrainersModule({
                   onClick={() => onSelectTrainer(trainer.id)}
                   type="button"
                 >
-                  View detail <ChevronRight size={16} />
+                  {t("trainers.list.viewDetail")} <ChevronRight size={16} />
                 </button>
               </div>
             </article>
@@ -187,9 +191,13 @@ function getInitials(fullName: string) {
     .toUpperCase();
 }
 
-function formatBirthDate(isoDate: string) {
+function formatBirthDate(
+  isoDate: string,
+  locale: string,
+  ageLabel: (age: number) => string,
+) {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return isoDate;
   const age = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  return `${date.toLocaleDateString()} (age ${age})`;
+  return `${date.toLocaleDateString(locale)} (${ageLabel(age)})`;
 }
