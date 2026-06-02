@@ -29,3 +29,12 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning:passlib",
+    "ignore::DeprecationWarning:passlib.handlers.bcrypt",
+    "ignore:datetime.datetime.utcnow.*:DeprecationWarning",
+]
