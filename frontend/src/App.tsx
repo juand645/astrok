@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AuthUser, getCurrentUser } from "./api";
+import { AuthUser, GYM_SLUG_STORAGE_KEY, Gym, fetchMyGym, getCurrentUser } from "./api";
 import { LoginModule } from "./modules/auth/LoginModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
 import { ClientsModule } from "./modules/clients/ClientsModule";
@@ -42,6 +42,7 @@ export function App() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [accessToken, setAccessToken] = useState(() => localStorage.getItem("gym_access_token"));
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [currentGym, setCurrentGym] = useState<Gym | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(Boolean(accessToken));
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [isCreatingClient, setIsCreatingClient] = useState(false);
@@ -56,26 +57,38 @@ export function App() {
       return;
     }
 
-    getCurrentUser(accessToken)
-      .then(setCurrentUser)
+    Promise.all([
+      getCurrentUser(accessToken),
+      fetchMyGym(accessToken).catch(() => null),
+    ])
+      .then(([user, gym]) => {
+        setCurrentUser(user);
+        setCurrentGym(gym);
+      })
       .catch(() => {
         localStorage.removeItem("gym_access_token");
         setAccessToken(null);
         setCurrentUser(null);
+        setCurrentGym(null);
       })
       .finally(() => setIsSessionLoading(false));
   }, [accessToken]);
 
-  function handleLogin(token: string, user: AuthUser) {
+  function handleLogin(token: string, user: AuthUser, gymSlug: string) {
     localStorage.setItem("gym_access_token", token);
+    if (gymSlug) {
+      localStorage.setItem(GYM_SLUG_STORAGE_KEY, gymSlug);
+    }
     setAccessToken(token);
     setCurrentUser(user);
+    // currentGym hydrates in the useEffect once accessToken changes.
   }
 
   function handleLogout() {
     localStorage.removeItem("gym_access_token");
     setAccessToken(null);
     setCurrentUser(null);
+    setCurrentGym(null);
     setActiveView("dashboard");
     setSelectedClientId(null);
     setIsCreatingClient(false);
@@ -91,6 +104,15 @@ export function App() {
     window.addEventListener("auth:expired", handleExpired);
     return () => window.removeEventListener("auth:expired", handleExpired);
   }, [accessToken]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (currentGym?.brand_color) {
+      root.style.setProperty("--gym-brand-color", currentGym.brand_color);
+    } else {
+      root.style.removeProperty("--gym-brand-color");
+    }
+  }, [currentGym?.brand_color]);
 
   function navigateTo(view: ActiveView) {
     setActiveView(view);
@@ -139,11 +161,15 @@ export function App() {
       <aside className={`sidebar ${isMobileMenuOpen ? "is-open" : "is-collapsed"}`}>
         <div className="brand">
           <div className="brand-mark">
-            <Dumbbell size={22} />
+            {currentGym?.logo_url ? (
+              <img src={currentGym.logo_url} alt="" className="brand-logo" />
+            ) : (
+              <Dumbbell size={22} />
+            )}
           </div>
           <div>
             <strong>Gym AI</strong>
-            <span>Instructor console</span>
+            <span>{currentGym?.name ?? t("login.brandTagline")}</span>
           </div>
         </div>
 

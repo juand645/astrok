@@ -69,24 +69,31 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
-    """Create a user with the given roles. Generic flavor of "register".
+def create_user(
+    payload: UserCreate,
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> User:
+    """Create a user with the given roles in the caller's gym.
 
     Body fields:
         full_name: Display name.
-        email: Unique; the bcrypt-hashed password is stored.
-        username: Unique handle.
+        email: Unique within the caller's gym; the bcrypt-hashed password is stored.
+        username: Unique handle within the caller's gym.
         password: Plain text, ≥8 chars (enforced by the schema).
         role_names: Names of roles to assign. Default ``["client"]``.
 
     Returns the serialized new user.
 
     Raises:
-        409: If the email or username already exists.
+        409: If the email or username already exists in this gym.
         400: If any requested role does not exist or is inactive.
     """
     existing = db.scalar(
-        select(User).where(or_(User.email == payload.email, User.username == payload.username))
+        select(User).where(
+            User.gym_id == current_user.gym_id,
+            or_(User.email == payload.email, User.username == payload.username),
+        )
     )
     if existing:
         raise HTTPException(status_code=409, detail="A user with this email or username already exists.")
@@ -100,6 +107,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         )
 
     user = User(
+        gym_id=current_user.gym_id,
         full_name=payload.full_name,
         email=str(payload.email),
         username=payload.username,

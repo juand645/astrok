@@ -1,5 +1,6 @@
 from app.models.appointment import Appointment
 from app.models.client_measurement import ClientMeasurement
+from app.models.gym import Gym
 from app.models.par_q_assessment import ParQAssessment
 from app.models.plan import Plan
 from app.models.plan_version import PlanVersion
@@ -10,6 +11,7 @@ from app.models.workout_session import WorkoutSession
 __all__ = [
     "Appointment",
     "ClientMeasurement",
+    "Gym",
     "ParQAssessment",
     "Plan",
     "PlanVersion",

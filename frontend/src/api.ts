@@ -1,9 +1,33 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+/** localStorage key for the last-used gym slug; remembers it across reloads
+ *  so users don't retype it on every visit. */
+export const GYM_SLUG_STORAGE_KEY = "gym_slug";
+
 function notifyIfSessionExpired(response: Response): void {
   if (response.status === 401) {
     window.dispatchEvent(new Event("auth:expired"));
   }
+}
+
+export type Gym = {
+  id: number;
+  slug: string;
+  name: string;
+  brand_color: string | null;
+  logo_url: string | null;
+  active: boolean;
+};
+
+export async function fetchMyGym(accessToken: string): Promise<Gym> {
+  const response = await fetch(`${API_URL}/api/gyms/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    throw new Error("Could not load gym.");
+  }
+  return response.json();
 }
 
 export type AuthUser = {
@@ -27,10 +51,19 @@ export type LoginResponse = {
   user: AuthUser;
 };
 
-export async function login(identifier: string, password: string): Promise<LoginResponse> {
+export async function login(
+  identifier: string,
+  password: string,
+  gymSlug?: string,
+): Promise<LoginResponse> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const trimmedSlug = gymSlug?.trim();
+  if (trimmedSlug) {
+    headers["X-Gym-Slug"] = trimmedSlug;
+  }
   const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ identifier, password }),
   });
 

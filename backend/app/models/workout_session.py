@@ -10,6 +10,7 @@ class WorkoutSession(Base):
     __tablename__ = "workout_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     plan_id: Mapped[int] = mapped_column(ForeignKey("plans.id"), nullable=False, index=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     recorded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)

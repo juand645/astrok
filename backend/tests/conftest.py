@@ -33,8 +33,23 @@ from sqlalchemy.pool import StaticPool
 
 from app.core import database as db_module
 from app.core.security import hash_password
+from app.core.tenancy import clear_current_gym_id
 from app.main import app
+from app.models.gym import DEFAULT_GYM_SLUG, Gym
 from app.models.user import Role, User, UserRole
+
+
+@pytest.fixture(autouse=True)
+def reset_tenant_context():
+    """Reset the tenant ContextVar between tests so scoping doesn't leak.
+
+    pytest runs every test in the same asyncio task, so a ContextVar set by
+    one test would otherwise persist into the next. Clearing here keeps every
+    test starting from "no gym context", same as a fresh request.
+    """
+    clear_current_gym_id()
+    yield
+    clear_current_gym_id()
 
 
 @pytest.fixture
@@ -79,8 +94,26 @@ def client(db: Session) -> TestClient:
 
 
 @pytest.fixture
-def seed_roles(db: Session) -> dict[str, Role]:
-    """Insert the canonical role rows the app expects to find."""
+def default_gym(db: Session) -> Gym:
+    """Insert the default gym tenant. The login flow falls back to this slug
+    when no ``X-Gym-Slug`` header is supplied, so existing tests don't have
+    to think about tenancy."""
+    gym = db.scalar(select(Gym).where(Gym.slug == DEFAULT_GYM_SLUG))
+    if gym is None:
+        gym = Gym(slug=DEFAULT_GYM_SLUG, name="Default Gym")
+        db.add(gym)
+        db.commit()
+        db.refresh(gym)
+    return gym
+
+
+@pytest.fixture
+def seed_roles(db: Session, default_gym: Gym) -> dict[str, Role]:
+    """Insert the canonical role rows the app expects to find.
+
+    Depends on ``default_gym`` so a fixture that asks for roles also gets a
+    tenant — ``make_user`` needs both to insert a user.
+    """
     role_names = ["client", "trainer", "admin"]
     for name in role_names:
         existing = db.scalar(select(Role).where(Role.name == name))
@@ -98,9 +131,24 @@ def make_user(
     password: str = "Password123!",
     roles: tuple[str, ...] = ("trainer",),
     active: bool = True,
+    gym_id: int | None = None,
 ) -> User:
-    """Insert a user (with hashed password + role assignments) and return it."""
+    """Insert a user (with hashed password + role assignments) and return it.
+
+    ``gym_id`` defaults to the default gym so existing single-tenant tests
+    keep working without changes. Pass a specific id when testing cross-tenant
+    behavior.
+    """
+    if gym_id is None:
+        default = db.scalar(select(Gym).where(Gym.slug == DEFAULT_GYM_SLUG))
+        if default is None:
+            default = Gym(slug=DEFAULT_GYM_SLUG, name="Default Gym")
+            db.add(default)
+            db.flush()
+        gym_id = default.id
+
     user = User(
+        gym_id=gym_id,
         full_name="Test User",
         email=email or f"{username}@example.com",
         username=username,

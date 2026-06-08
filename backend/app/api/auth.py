@@ -1,19 +1,14 @@
 from datetime import UTC, datetime
 
-import jwt
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_authenticated_user
 from app.core.database import get_db
-from app.core.security import (
-    create_access_token,
-    decode_access_token,
-    hash_password,
-    verify_password,
-)
+from app.core.security import create_access_token, hash_password, verify_password
+from app.core.tenancy import apply_gym_scope
+from app.models.gym import DEFAULT_GYM_SLUG, Gym
 from app.models.user import User
 from app.models.user_relation import UserRelation
 from app.schemas.auth import (
@@ -32,27 +27,50 @@ from app.services.storage import (
 )
 
 router = APIRouter()
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    """Authenticate by username/email + password and issue a JWT.
+def login(
+    payload: LoginRequest,
+    db: Session = Depends(get_db),
+    x_gym_slug: str | None = Header(default=None, alias="X-Gym-Slug"),
+) -> TokenResponse:
+    """Authenticate by username/email + password (within a gym) and issue a JWT.
 
-    Body fields:
+    Body:
         identifier: Username OR email — matched with an OR clause.
         password: Plain text; compared with the bcrypt hash on the user.
 
-    Returns the access token and the serialized user (including
-    ``professional_id`` for clients). Raises 401 on bad credentials or an
-    inactive user.
+    Header:
+        X-Gym-Slug: The gym slug the user is signing into. Optional; falls back
+            to the ``default`` gym so single-tenant deploys and existing
+            frontends keep working until they're updated to send the header.
+
+    The user lookup is scoped by ``gym_id``, so two gyms can each have a user
+    named ``admin`` without collision. The issued JWT carries ``gym_id`` in
+    its claims; every authenticated request later validates the user's
+    current ``gym_id`` against the token's ``gym_id`` (defense in depth).
     """
+    gym_slug = (x_gym_slug or DEFAULT_GYM_SLUG).strip()
+    gym = db.scalar(select(Gym).where(Gym.slug == gym_slug, Gym.active.is_(True)))
+    if gym is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password.",
+        )
+
+    # Establish gym scope before the user lookup. With RLS on (Postgres prod),
+    # this is what makes the user SELECT actually return a row — without the
+    # GUC set, the policy hides every users row.
+    apply_gym_scope(db, gym.id)
+
     user = db.scalar(
         select(User).where(
+            User.gym_id == gym.id,
             or_(
                 User.username == payload.identifier,
                 User.email == payload.identifier,
-            )
+            ),
         )
     )
 
@@ -64,14 +82,14 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 
     access_token = create_access_token(
         subject=str(user.id),
-        extra_claims={"username": user.username},
+        extra_claims={"username": user.username, "gym_id": user.gym_id},
     )
     return TokenResponse(access_token=access_token, user=serialize_user(user, db))
 
 
 @router.get("/me", response_model=UserRead)
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> UserRead:
     """Resolve the JWT in the Authorization header to the caller's profile.
@@ -79,23 +97,13 @@ def get_current_user(
     Used by the frontend on app load to validate the stored token and rehydrate
     the session (currentUser + the client's professional_id, if any).
 
-    Raises 401 with ``WWW-Authenticate: Bearer`` if the token is missing,
-    malformed, expired, or refers to an inactive user.
+    Delegates to ``get_authenticated_user`` so the gym scope (RLS + ORM filter)
+    is set BEFORE any user lookup. The endpoint used to duplicate the token
+    decoding + ``db.get(User, ...)`` here, which silently broke once RLS was
+    enabled — the user SELECT ran against a session with no gym context and
+    the policy hid the row, producing a 401 on every valid token.
     """
-    if credentials is None:
-        raise_invalid_token()
-
-    try:
-        payload = decode_access_token(credentials.credentials)
-        user_id = int(payload["sub"])
-    except (KeyError, ValueError, jwt.InvalidTokenError):
-        raise_invalid_token()
-
-    user = db.get(User, user_id)
-    if not user or not user.active:
-        raise_invalid_token()
-
-    return serialize_user(user, db)
+    return serialize_user(current_user, db)
 
 
 @router.patch("/me", response_model=UserRead)
@@ -274,13 +282,4 @@ def serialize_user(user: User, db: Session | None = None) -> UserRead:
         active=user.active,
         roles=[user_role.role.name for user_role in user.roles if user_role.role.active],
         professional_id=professional_id,
-    )
-
-
-def raise_invalid_token() -> None:
-    """Raise a uniform 401 for any token-related failure."""
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired authentication token.",
-        headers={"WWW-Authenticate": "Bearer"},
     )

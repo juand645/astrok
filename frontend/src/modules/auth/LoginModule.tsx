@@ -1,16 +1,19 @@
 import { FormEvent, useState } from "react";
 import { Dumbbell, LogIn } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AuthUser, login } from "../../api";
+import { AuthUser, GYM_SLUG_STORAGE_KEY, login } from "../../api";
 
 type LoginModuleProps = {
-  onLogin: (accessToken: string, user: AuthUser) => void;
+  onLogin: (accessToken: string, user: AuthUser, gymSlug: string) => void;
 };
 
 export function LoginModule({ onLogin }: LoginModuleProps) {
   const { t } = useTranslation();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [gymSlug, setGymSlug] = useState(
+    () => localStorage.getItem(GYM_SLUG_STORAGE_KEY) ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,9 +22,15 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
     setError(null);
     setIsLoading(true);
 
+    const trimmedSlug = gymSlug.trim();
     try {
-      const session = await login(identifier, password);
-      onLogin(session.access_token, session.user);
+      const session = await login(identifier, password, trimmedSlug || undefined);
+      if (trimmedSlug) {
+        localStorage.setItem(GYM_SLUG_STORAGE_KEY, trimmedSlug);
+      } else {
+        localStorage.removeItem(GYM_SLUG_STORAGE_KEY);
+      }
+      onLogin(session.access_token, session.user, trimmedSlug);
     } catch (currentError) {
       setError(
         currentError instanceof Error ? currentError.message : t("login.errorFallback"),
@@ -50,6 +59,17 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>{t("login.gymSlugLabel")}</span>
+            <input
+              autoComplete="organization"
+              value={gymSlug}
+              placeholder={t("login.gymSlugPlaceholder")}
+              onChange={(event) => setGymSlug(event.target.value)}
+            />
+            <small className="muted">{t("login.gymSlugHint")}</small>
+          </label>
+
           <label className="field">
             <span>{t("login.identifierLabel")}</span>
             <input

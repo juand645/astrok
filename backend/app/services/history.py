@@ -44,6 +44,7 @@ def record_measurements(
         The newly-inserted ``ClientMeasurement`` row.
     """
     entry = ClientMeasurement(
+        gym_id=client.gym_id,
         client_id=client.id,
         measures=measures,
         recorded_by=recorded_by,
@@ -66,6 +67,7 @@ def record_measurements(
 def create_plan_with_initial_version(
     db: Session,
     *,
+    gym_id: int,
     client_id: int,
     professional_id: int,
     title: str,
@@ -97,6 +99,7 @@ def create_plan_with_initial_version(
         ``(plan, version)`` — both refreshed when ``commit=True``.
     """
     plan = Plan(
+        gym_id=gym_id,
         client_id=client_id,
         professional_id=professional_id,
         appointment_id=appointment_id,
@@ -110,6 +113,7 @@ def create_plan_with_initial_version(
     db.flush()  # populate plan.id without committing
 
     version = PlanVersion(
+        gym_id=gym_id,
         plan_id=plan.id,
         version=1,
         content=content,
@@ -161,6 +165,7 @@ def save_plan_version(
     )
 
     version = PlanVersion(
+        gym_id=plan.gym_id,
         plan_id=plan.id,
         version=last_version + 1,
         content=content,

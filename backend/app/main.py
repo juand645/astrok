@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import api_router
 from app.core.config import settings
 from app.core.database import Base, engine, ensure_database_schema
+from app.core import tenancy  # noqa: F401 — registers the gym-scoping event listener
 
 ensure_database_schema()
 Base.metadata.create_all(bind=engine)

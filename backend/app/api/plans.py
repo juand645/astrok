@@ -51,6 +51,7 @@ def create_plan(
 
     plan, _ = create_plan_with_initial_version(
         db,
+        gym_id=current_user.gym_id,
         client_id=payload.client_id,
         professional_id=current_user.id,
         title=payload.title,

@@ -10,6 +10,7 @@ class Plan(Base):
     __tablename__ = "plans"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     professional_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     appointment_id: Mapped[int | None] = mapped_column(

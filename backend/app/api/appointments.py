@@ -236,6 +236,7 @@ def create_appointment(
         )
 
     appointment = Appointment(
+        gym_id=current_user.gym_id,
         client_id=client_id,
         professional_id=professional_id,
         starts_at=starts_at,
@@ -410,6 +411,7 @@ def create_unavailability(
             continue
 
         row = TrainerUnavailability(
+            gym_id=current_user.gym_id,
             professional_id=current_user.id,
             starts_at=starts_at,
             ends_at=ends_at,

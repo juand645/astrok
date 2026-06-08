@@ -18,6 +18,7 @@ class TrainerUnavailability(Base):
     __tablename__ = "trainer_unavailability"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     professional_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )

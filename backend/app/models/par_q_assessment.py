@@ -18,6 +18,7 @@ class ParQAssessment(Base):
     __tablename__ = "par_q_assessments"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     requested_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     requested_at: Mapped[datetime] = mapped_column(

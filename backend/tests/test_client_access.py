@@ -15,6 +15,7 @@ def _link(db: Session, trainer: User, client: User) -> None:
     """Insert an active user_relations row tying trainer → client."""
     db.add(
         UserRelation(
+            gym_id=trainer.gym_id,
             professional_id=trainer.id,
             client_id=client.id,
             relation_type="trainer",

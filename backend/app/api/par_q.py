@@ -87,6 +87,7 @@ def enable_par_q(
         )
 
     assessment = ParQAssessment(
+        gym_id=current_user.gym_id,
         client_id=client_id,
         requested_by=current_user.id,
         status="requested",

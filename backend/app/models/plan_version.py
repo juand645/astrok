@@ -11,6 +11,7 @@ class PlanVersion(Base):
     __table_args__ = (UniqueConstraint("plan_id", "version"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     plan_id: Mapped[int] = mapped_column(ForeignKey("plans.id"), nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[dict] = mapped_column(JSON, nullable=False)

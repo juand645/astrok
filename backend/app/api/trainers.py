@@ -177,6 +177,7 @@ def create_trainer(
         )
 
     user = User(
+        gym_id=current_user.gym_id,
         full_name=payload.full_name.strip(),
         email=str(payload.email),
         username=payload.username.strip(),

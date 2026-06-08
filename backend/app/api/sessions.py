@@ -98,6 +98,7 @@ def log_session(
         session = existing
     else:
         session = WorkoutSession(
+            gym_id=current_user.gym_id,
             plan_id=payload.plan_id,
             client_id=client_id,
             recorded_by=current_user.id,

@@ -10,6 +10,7 @@ class UserRelation(Base):
     __tablename__ = "user_relations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     professional_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     relation_type: Mapped[str] = mapped_column(String(60), nullable=False)

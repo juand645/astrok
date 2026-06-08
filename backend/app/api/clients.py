@@ -81,6 +81,7 @@ def create_client(
         )
 
     user = User(
+        gym_id=current_user.gym_id,
         full_name=payload.full_name.strip(),
         email=str(payload.email),
         username=payload.username.strip(),
@@ -95,6 +96,7 @@ def create_client(
     db.flush()
 
     relation = UserRelation(
+        gym_id=current_user.gym_id,
         professional_id=current_user.id,
         client_id=user.id,
         relation_type="trainer_client",
@@ -117,6 +119,7 @@ def create_client(
     for plan_input in payload.plans:
         create_plan_with_initial_version(
             db,
+            gym_id=current_user.gym_id,
             client_id=user.id,
             professional_id=current_user.id,
             title=plan_input.title.strip(),
@@ -451,6 +454,7 @@ def transfer_client(
     current_relation.updated_at = now
 
     new_relation = UserRelation(
+        gym_id=client.gym_id,
         professional_id=target.id,
         client_id=client.id,
         relation_type=current_relation.relation_type,

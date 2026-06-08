@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -40,12 +40,17 @@ class UserRole(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("gym_id", "email", name="users_gym_email_unique"),
+        UniqueConstraint("gym_id", "username", name="users_gym_username_unique"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    username: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     personal_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
     id_number: Mapped[str | None] = mapped_column(String(40), nullable=True)

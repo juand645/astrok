@@ -22,6 +22,7 @@ def _all_no_answers() -> list[dict[str, Any]]:
 def _seed_assessment(db: Session, trainer: User, member: User) -> ParQAssessment:
     db.add(
         UserRelation(
+            gym_id=trainer.gym_id,
             professional_id=trainer.id,
             client_id=member.id,
             relation_type="trainer",
@@ -29,6 +30,7 @@ def _seed_assessment(db: Session, trainer: User, member: User) -> ParQAssessment
         )
     )
     assessment = ParQAssessment(
+        gym_id=member.gym_id,
         client_id=member.id,
         requested_by=trainer.id,
         status="requested",
