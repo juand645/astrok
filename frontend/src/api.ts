@@ -30,6 +30,117 @@ export async function fetchMyGym(accessToken: string): Promise<Gym> {
   return response.json();
 }
 
+export async function fetchGyms(accessToken: string): Promise<Gym[]> {
+  const response = await fetch(`${API_URL}/api/gyms/`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load gyms.");
+  }
+  return response.json();
+}
+
+export type GymBootstrapAdmin = {
+  full_name: string;
+  email: string;
+  username: string;
+  password: string;
+};
+
+export type GymCreatePayload = {
+  slug: string;
+  name: string;
+  brand_color?: string | null;
+  logo_url?: string | null;
+  admin: GymBootstrapAdmin;
+};
+
+export async function createGym(
+  accessToken: string,
+  payload: GymCreatePayload,
+): Promise<Gym> {
+  const response = await fetch(`${API_URL}/api/gyms/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not create gym.");
+  }
+  return response.json();
+}
+
+export type GymUpdatePayload = {
+  name?: string;
+  brand_color?: string | null;
+  logo_url?: string | null;
+  active?: boolean;
+};
+
+export async function updateGym(
+  accessToken: string,
+  gymId: number,
+  payload: GymUpdatePayload,
+): Promise<Gym> {
+  const response = await fetch(`${API_URL}/api/gyms/${gymId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not update gym.");
+  }
+  return response.json();
+}
+
+export async function uploadGymLogo(
+  accessToken: string,
+  gymId: number,
+  file: File,
+): Promise<Gym> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_URL}/api/gyms/${gymId}/logo`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not upload logo.");
+  }
+  return response.json();
+}
+
+export async function deleteGymLogo(
+  accessToken: string,
+  gymId: number,
+): Promise<Gym> {
+  const response = await fetch(`${API_URL}/api/gyms/${gymId}/logo`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not remove logo.");
+  }
+  return response.json();
+}
+
 export type AuthUser = {
   id: number;
   full_name: string;
@@ -341,10 +452,34 @@ export async function fetchClientPlans(
   return response.json();
 }
 
+export type Measurement = {
+  id: number;
+  client_id: number;
+  recorded_by: number | null;
+  recorded_at: string;
+  measures: Record<string, number | string>;
+  notes: string | null;
+};
+
 export type MeasurementSaveResponse = {
   entry: { id: number; recorded_at: string } | null;
   measures: Record<string, number | string>;
 };
+
+export async function fetchClientMeasurements(
+  accessToken: string,
+  clientId: number,
+): Promise<Measurement[]> {
+  const response = await fetch(`${API_URL}/api/clients/${clientId}/measurements`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    notifyIfSessionExpired(response);
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Could not load measurement history.");
+  }
+  return response.json();
+}
 
 export async function recordMeasurement(
   accessToken: string,
@@ -561,6 +696,9 @@ export type CreateClientPayload = {
   measures?: Record<string, number | string>;
   relation_description?: string | null;
   plans?: NewPlanPayload[];
+  /** User id of the professional this client will be linked to. Only honored
+   *  by the backend when the caller is an admin; ignored otherwise. */
+  professional_id?: number | null;
 };
 
 export async function createClient(

@@ -129,3 +129,56 @@ def delete_avatar(user_id: int) -> None:
         Bucket=settings.r2_bucket,
         Key=f"avatars/{user_id}.{AVATAR_EXT}",
     )
+
+
+# -----------------------------------------------------------------------------
+# Gym logos (same pipeline as avatars: square crop, resize, WebP). Separate
+# bucket prefix so storage usage and access policies stay easy to reason about.
+# -----------------------------------------------------------------------------
+
+GYM_LOGO_SIZE = (256, 256)
+
+
+def upload_gym_logo(*, gym_id: int, raw: bytes) -> str:
+    """Resize + push the bytes to ``gym-logos/<gym_id>.webp`` and return the public URL.
+
+    Same processing as avatars (center-crop to square, resize, WebP at q=85)
+    so the rendered output is predictable in the same 44×44 brand-mark slot
+    on the sidebar. Cache-busted with a content hash so a re-upload bypasses
+    any CDN cache the public URL is behind.
+
+    Raises:
+        StorageNotConfiguredError: When R2 settings are missing.
+        InvalidImageError: When ``raw`` isn't a decodable image.
+        ValueError: When ``raw`` exceeds ``MAX_UPLOAD_BYTES``.
+    """
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise ValueError(
+            f"Upload exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
+        )
+
+    blob = _resize_to_webp(io.BytesIO(raw))
+    content_hash = hashlib.sha256(blob).hexdigest()[:8]
+
+    client = get_s3_client()
+    key = f"gym-logos/{gym_id}.{AVATAR_EXT}"
+    client.put_object(
+        Bucket=settings.r2_bucket,
+        Key=key,
+        Body=blob,
+        ContentType=AVATAR_MIME,
+        CacheControl="public, max-age=3600",
+    )
+
+    return f"{settings.r2_public_url.rstrip('/')}/{key}?v={content_hash}"
+
+
+def delete_gym_logo(gym_id: int) -> None:
+    """Best-effort delete of the gym logo object. Silent if not configured."""
+    if not storage_is_configured():
+        return
+    client = get_s3_client()
+    client.delete_object(
+        Bucket=settings.r2_bucket,
+        Key=f"gym-logos/{gym_id}.{AVATAR_EXT}",
+    )

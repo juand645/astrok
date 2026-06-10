@@ -27,7 +27,7 @@ def test_admin_can_create_gym_with_bootstrap_admin(
     db: Session,
     seed_roles: dict,
 ) -> None:
-    make_user(db, username="root", password="Hunter2!!", roles=("admin",))
+    make_user(db, username="root", password="Hunter2!!", roles=("super_admin",))
     headers = auth_headers(client, "root", "Hunter2!!")
 
     response = client.post("/api/gyms/", headers=headers, json=_create_gym_payload())
@@ -46,7 +46,7 @@ def test_bootstrap_admin_can_log_into_new_gym(
 ) -> None:
     """End-to-end: create a gym, then the new admin can authenticate against
     it via X-Gym-Slug + their credentials."""
-    make_user(db, username="root", password="Hunter2!!", roles=("admin",))
+    make_user(db, username="root", password="Hunter2!!", roles=("super_admin",))
     headers = auth_headers(client, "root", "Hunter2!!")
 
     creation = client.post("/api/gyms/", headers=headers, json=_create_gym_payload())
@@ -87,7 +87,7 @@ def test_create_gym_rejects_duplicate_slug(
     db: Session,
     seed_roles: dict,
 ) -> None:
-    make_user(db, username="root", password="Hunter2!!", roles=("admin",))
+    make_user(db, username="root", password="Hunter2!!", roles=("super_admin",))
     headers = auth_headers(client, "root", "Hunter2!!")
 
     first = client.post("/api/gyms/", headers=headers, json=_create_gym_payload())
@@ -106,7 +106,7 @@ def test_create_gym_validates_slug_shape(
     db: Session,
     seed_roles: dict,
 ) -> None:
-    make_user(db, username="root", password="Hunter2!!", roles=("admin",))
+    make_user(db, username="root", password="Hunter2!!", roles=("super_admin",))
     headers = auth_headers(client, "root", "Hunter2!!")
 
     bad = _create_gym_payload(slug="-bad-leading-hyphen")
@@ -147,22 +147,51 @@ def test_list_gyms_is_admin_only(
     assert response.status_code == 403
 
 
-def test_admin_cannot_patch_another_gym(
+def test_gym_admin_cannot_patch_another_gym(
     client: TestClient,
     db: Session,
     seed_roles: dict,
 ) -> None:
-    """A gym admin must not be able to edit a gym they don't belong to."""
-    make_user(db, username="root", password="Hunter2!!", roles=("admin",))
+    """A gym-level admin must not be able to edit a gym they don't belong to.
+
+    Set up: a super_admin creates a second gym (since gym creation now
+    requires super_admin). Then we log in as a plain ``admin`` in the
+    default gym and try to patch the second gym — expect 403.
+    """
+    make_user(db, username="root", password="Hunter2!!", roles=("super_admin",))
+    make_user(db, username="gymadmin", password="Hunter2!!", roles=("admin",))
+
+    root_headers = auth_headers(client, "root", "Hunter2!!")
+    creation = client.post("/api/gyms/", headers=root_headers, json=_create_gym_payload())
+    assert creation.status_code == 201
+    other_gym_id = creation.json()["id"]
+
+    admin_headers = auth_headers(client, "gymadmin", "Hunter2!!")
+    response = client.patch(
+        f"/api/gyms/{other_gym_id}",
+        headers=admin_headers,
+        json={"name": "Stolen Name"},
+    )
+    assert response.status_code == 403
+
+
+def test_super_admin_can_patch_any_gym(
+    client: TestClient,
+    db: Session,
+    seed_roles: dict,
+) -> None:
+    """Super-admins have cross-gym patch powers (rename, recolor, etc.)."""
+    make_user(db, username="root", password="Hunter2!!", roles=("super_admin",))
     headers = auth_headers(client, "root", "Hunter2!!")
 
     creation = client.post("/api/gyms/", headers=headers, json=_create_gym_payload())
-    assert creation.status_code == 201
     other_gym_id = creation.json()["id"]
 
     response = client.patch(
         f"/api/gyms/{other_gym_id}",
         headers=headers,
-        json={"name": "Stolen Name"},
+        json={"name": "Renamed by Super Admin", "brand_color": "#ff8800"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 200, response.text
+    assert response.json()["name"] == "Renamed by Super Admin"
+    assert response.json()["brand_color"] == "#ff8800"

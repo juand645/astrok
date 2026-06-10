@@ -11,6 +11,7 @@ import { AddPlanForm } from "./AddPlanForm";
 import { ClientHeaderActions } from "./ClientHeaderActions";
 import { ClientNotesPanel } from "./ClientNotesPanel";
 import { HealthScreeningCard } from "./HealthScreeningCard";
+import { MeasuresHistoryPanel } from "./MeasuresHistoryPanel";
 import { MeasuresPanel } from "./MeasuresPanel";
 import { PlanCoachPanel } from "./PlanCoachPanel";
 import { PlanPanel } from "./PlanPanel";
@@ -36,6 +37,9 @@ export function ClientDetailModule({
   const [error, setError] = useState<string | null>(null);
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [isCoachOpen, setIsCoachOpen] = useState(false);
+  // Bumped after a successful save in MeasuresPanel so the history panel
+  // re-fetches and shows the new entry without a page reload.
+  const [measuresReloadKey, setMeasuresReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +77,7 @@ export function ClientDetailModule({
 
   function handleMeasuresSaved(newMeasures: Record<string, number | string>) {
     setClient((current) => (current ? { ...current, measures: newMeasures } : current));
+    setMeasuresReloadKey((value) => value + 1);
   }
 
   function handleClientUpdated(updated: ClientDetail) {
@@ -165,6 +170,12 @@ export function ClientDetailModule({
         clientId={client.id}
         initialMeasures={client.measures}
         onSaved={handleMeasuresSaved}
+      />
+
+      <MeasuresHistoryPanel
+        accessToken={accessToken}
+        clientId={client.id}
+        reloadKey={measuresReloadKey}
       />
 
       <HealthScreeningCard accessToken={accessToken} clientId={client.id} />

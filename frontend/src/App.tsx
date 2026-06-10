@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Building2,
   Calendar,
   CalendarDays,
   ClipboardCheck,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AuthUser, GYM_SLUG_STORAGE_KEY, Gym, fetchMyGym, getCurrentUser } from "./api";
+import { pickContrastTextColor } from "./utils/contrast";
 import { LoginModule } from "./modules/auth/LoginModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
 import { ClientsModule } from "./modules/clients/ClientsModule";
@@ -21,6 +23,9 @@ import { NewClientModule } from "./modules/clients/NewClientModule";
 import { ClientDashboardModule } from "./modules/dashboard/ClientDashboardModule";
 import { DashboardModule } from "./modules/dashboard/DashboardModule";
 import { AppointmentsModule } from "./modules/appointments/AppointmentsModule";
+import { GymsModule } from "./modules/gyms/GymsModule";
+import { GymDetailModule } from "./modules/gyms/GymDetailModule";
+import { NewGymModule } from "./modules/gyms/NewGymModule";
 import { ParQModule } from "./modules/health/ParQModule";
 import { ProfileModule } from "./modules/profile/ProfileModule";
 import { PlanSessionsModule } from "./modules/sessions/PlanSessionsModule";
@@ -32,6 +37,7 @@ type ActiveView =
   | "dashboard"
   | "clients"
   | "trainers"
+  | "gyms"
   | "sessions"
   | "appointments"
   | "health"
@@ -49,6 +55,9 @@ export function App() {
   const [selectedTrainerId, setSelectedTrainerId] = useState<number | null>(null);
   const [isCreatingTrainer, setIsCreatingTrainer] = useState(false);
   const [trainersReloadKey, setTrainersReloadKey] = useState(0);
+  const [selectedGymId, setSelectedGymId] = useState<number | null>(null);
+  const [isCreatingGym, setIsCreatingGym] = useState(false);
+  const [gymsReloadKey, setGymsReloadKey] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -94,6 +103,8 @@ export function App() {
     setIsCreatingClient(false);
     setSelectedTrainerId(null);
     setIsCreatingTrainer(false);
+    setSelectedGymId(null);
+    setIsCreatingGym(false);
   }
 
   useEffect(() => {
@@ -109,8 +120,16 @@ export function App() {
     const root = document.documentElement;
     if (currentGym?.brand_color) {
       root.style.setProperty("--gym-brand-color", currentGym.brand_color);
+      // Pick light or dark ink for text/icons that sit on top of the brand
+      // color — keeps primary buttons + active nav item readable regardless
+      // of how dark the gym picks.
+      root.style.setProperty(
+        "--gym-brand-text-color",
+        pickContrastTextColor(currentGym.brand_color),
+      );
     } else {
       root.style.removeProperty("--gym-brand-color");
+      root.style.removeProperty("--gym-brand-text-color");
     }
   }, [currentGym?.brand_color]);
 
@@ -120,6 +139,8 @@ export function App() {
     setIsCreatingClient(false);
     setSelectedTrainerId(null);
     setIsCreatingTrainer(false);
+    setSelectedGymId(null);
+    setIsCreatingGym(false);
     setIsMobileMenuOpen(false);
   }
 
@@ -147,10 +168,13 @@ export function App() {
 
   const isClient = currentUser.roles.includes("client");
   const isAdmin = currentUser.roles.includes("admin");
+  const isSuperAdmin = currentUser.roles.includes("super_admin");
   const resolvedView: ActiveView =
     activeView === "clients" && isClient
       ? "dashboard"
       : activeView === "trainers" && !isAdmin
+      ? "dashboard"
+      : activeView === "gyms" && !isSuperAdmin
       ? "dashboard"
       : activeView === "health" && !isClient
       ? "dashboard"
@@ -207,6 +231,15 @@ export function App() {
             >
               <ShieldCheck size={18} />
               {t("nav.trainers")}
+            </button>
+          )}
+          {isSuperAdmin && (
+            <button
+              className={`nav-item ${resolvedView === "gyms" ? "active" : ""}`}
+              onClick={() => navigateTo("gyms")}
+            >
+              <Building2 size={18} />
+              {t("nav.gyms")}
             </button>
           )}
           <button
@@ -273,6 +306,7 @@ export function App() {
         {resolvedView === "clients" && isCreatingClient ? (
           <NewClientModule
             accessToken={accessToken}
+            currentUser={currentUser}
             onCancel={() => setIsCreatingClient(false)}
             onCreated={() => setIsCreatingClient(false)}
           />
@@ -315,6 +349,31 @@ export function App() {
             accessToken={accessToken}
             onSelectTrainer={setSelectedTrainerId}
             onCreateTrainer={() => setIsCreatingTrainer(true)}
+          />
+        ) : resolvedView === "gyms" && isCreatingGym ? (
+          <NewGymModule
+            accessToken={accessToken}
+            onCancel={() => setIsCreatingGym(false)}
+            onCreated={() => {
+              setIsCreatingGym(false);
+              setGymsReloadKey((value) => value + 1);
+            }}
+          />
+        ) : resolvedView === "gyms" && selectedGymId !== null ? (
+          <GymDetailModule
+            accessToken={accessToken}
+            gymId={selectedGymId}
+            onBack={() => {
+              setSelectedGymId(null);
+              setGymsReloadKey((value) => value + 1);
+            }}
+          />
+        ) : resolvedView === "gyms" ? (
+          <GymsModule
+            key={gymsReloadKey}
+            accessToken={accessToken}
+            onSelectGym={setSelectedGymId}
+            onCreateGym={() => setIsCreatingGym(true)}
           />
         ) : resolvedView === "sessions" ? (
           <PlanSessionsModule accessToken={accessToken} currentUser={currentUser} />

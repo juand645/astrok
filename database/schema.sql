@@ -433,7 +433,8 @@ INSERT INTO astrok.gyms (slug, name) VALUES
     ('default', 'Default Gym');
 
 INSERT INTO astrok.roles (name, description) VALUES
-    ('admin',        'Full system administration access.'),
+    ('super_admin',  'Platform operator with cross-gym powers.'),
+    ('admin',        'Full system administration access within a gym.'),
     ('trainer',      'Gym instructor or personal trainer.'),
     ('client',       'Gym client, patient, or service recipient.'),
     ('doctor',       'Medical professional.'),
@@ -453,12 +454,14 @@ INSERT INTO astrok.permissions (name, description) VALUES
     ('measurements:write', 'Record client measurements.'),
     ('permissions:manage', 'Manage roles and permissions.');
 
--- admin gets everything
+-- admin + super_admin both get every permission. The difference between them
+-- is enforced at the API layer (super_admin can manage all gyms; admin only
+-- manages within their own gym), not by per-permission gating.
 INSERT INTO astrok.role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM astrok.roles r
 CROSS JOIN astrok.permissions p
-WHERE r.name = 'admin';
+WHERE r.name IN ('admin', 'super_admin');
 
 -- trainer/doctor/nutritionist: clinical write + read across the board
 INSERT INTO astrok.role_permissions (role_id, permission_id)
@@ -525,7 +528,11 @@ SELECT g.id, 'Administrator', 'admin@example.com', 'admin',
        TRUE
 FROM astrok.gyms g WHERE g.slug = 'default';
 
+-- Bootstrap admin gets both the gym-level ``admin`` role (so they can run
+-- their own gym) and the global ``super_admin`` role (so they can create
+-- more gyms). On a multi-tenant deployment with multiple operators, you'd
+-- want to split these between separate users.
 INSERT INTO astrok.user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM astrok.users u, astrok.roles r
-WHERE u.username = 'admin' AND r.name = 'admin';
+WHERE u.username = 'admin' AND r.name IN ('admin', 'super_admin');

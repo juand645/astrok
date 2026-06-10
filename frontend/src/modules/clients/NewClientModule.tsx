@@ -1,18 +1,22 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, CalendarPlus, Plus, Save, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
+  AuthUser,
   Circuito,
   CreateClientPayload,
   ExerciseEntry,
   NewPlanPayload,
   PlanContent,
+  UserSummary,
   createClient,
+  fetchProfessionals,
 } from "../../api";
 import { prettyDayLabel } from "./clientDetailUtils";
 
 type NewClientModuleProps = {
   accessToken: string;
+  currentUser: AuthUser;
   onCancel: () => void;
   onCreated: () => void;
 };
@@ -50,8 +54,14 @@ function nextDayKey(existing: string[]): string {
   return `dia_${maxNumber + 1}`;
 }
 
-export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientModuleProps) {
+export function NewClientModule({
+  accessToken,
+  currentUser,
+  onCancel,
+  onCreated,
+}: NewClientModuleProps) {
   const { t } = useTranslation();
+  const isAdmin = currentUser.roles.includes("admin");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -65,6 +75,31 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
   const [plans, setPlans] = useState<DraftPlan[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Admin-only: pick which trainer the new client is assigned to. Trainers
+  // skip this entirely — the backend auto-self-assigns them on create.
+  const [professionals, setProfessionals] = useState<UserSummary[]>([]);
+  const [professionalId, setProfessionalId] = useState<number | "">("");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    fetchProfessionals(accessToken)
+      .then((rows) => {
+        if (cancelled) return;
+        // Exclude the caller (admin); they can still be picked explicitly via
+        // backend default if needed, but the typical case is "assign to one of
+        // the gym's trainers" — admins don't usually own client rosters.
+        const others = rows.filter((row) => row.id !== currentUser.id);
+        setProfessionals(others);
+      })
+      .catch(() => {
+        // Silent: the form still works, just without the dropdown's options.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, isAdmin, currentUser.id]);
 
   function updateMeasureRow(index: number, field: keyof MeasureRow, value: string) {
     setMeasureRows((current) => {
@@ -321,6 +356,7 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
       relation_description: relationDescription.trim() || null,
       measures,
       plans: payloadPlans,
+      professional_id: professionalId === "" ? null : professionalId,
     };
 
     setIsSaving(true);
@@ -427,6 +463,27 @@ export function NewClientModule({ accessToken, onCancel, onCreated }: NewClientM
                 onChange={(event) => setRelationDescription(event.target.value)}
               />
             </label>
+            {isAdmin && professionals.length > 0 ? (
+              <label className="field">
+                <span>{t("clients.new.professional")}</span>
+                <select
+                  value={professionalId}
+                  onChange={(event) =>
+                    setProfessionalId(
+                      event.target.value ? Number(event.target.value) : "",
+                    )
+                  }
+                >
+                  <option value="">{t("clients.new.professionalPlaceholder")}</option>
+                  {professionals.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name} (@{p.username})
+                    </option>
+                  ))}
+                </select>
+                <small className="muted">{t("clients.new.professionalHint")}</small>
+              </label>
+            ) : null}
           </div>
         </section>
 

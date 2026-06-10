@@ -11,6 +11,7 @@ class RoleName(StrEnum):
     client = "client"
     trainer = "trainer"
     admin = "admin"
+    super_admin = "super_admin"
     doctor = "doctor"
     nutritionist = "nutritionist"
     receptionist = "receptionist"

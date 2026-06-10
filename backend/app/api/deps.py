@@ -96,8 +96,23 @@ def get_current_gym_id(current_user: User = Depends(get_authenticated_user)) -> 
 
 
 def actor_is_admin(actor: User) -> bool:
-    """Return True iff ``actor`` has an active ``admin`` role assignment."""
+    """Return True iff ``actor`` has an active ``admin`` role assignment.
+
+    ``admin`` is the gym-scoped role — every gym has at least one. Use
+    ``actor_is_super_admin`` for cross-gym platform operations.
+    """
     return any(ur.role.name == "admin" for ur in actor.roles if ur.role.active)
+
+
+def actor_is_super_admin(actor: User) -> bool:
+    """Return True iff ``actor`` has an active ``super_admin`` role assignment.
+
+    ``super_admin`` is the global platform-operator role: only super_admins
+    can create new gyms, list every gym on the platform, or edit gyms they
+    don't belong to. Gym-internal admin operations stay on ``admin`` so
+    the principle of least privilege holds.
+    """
+    return any(ur.role.name == "super_admin" for ur in actor.roles if ur.role.active)
 
 
 def actor_can_create_clients(actor: User) -> bool:

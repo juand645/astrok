@@ -23,6 +23,11 @@ class ClientCreate(BaseModel):
     measures: dict = Field(default_factory=dict)
     relation_description: str | None = None
     plans: list[NewPlanInput] = Field(default_factory=list)
+    # User id of the professional this client should be assigned to. Only
+    # honored when the caller is an admin (or another role with cross-trainer
+    # authority) — for a regular trainer this is ignored and the relation
+    # always links to the caller themselves.
+    professional_id: int | None = None
 
 
 class ClientRead(BaseModel):

@@ -80,6 +80,34 @@ def create_client(
             detail="The 'client' role is not configured. Seed it before creating clients.",
         )
 
+    # Resolve which professional the new client should be linked to. Admins
+    # can pick any active professional in their gym; everyone else can only
+    # create clients linked to themselves (this matches the existing trainer
+    # workflow — pre-existing behavior is unchanged when ``professional_id``
+    # is omitted by the frontend).
+    assigned_professional_id = current_user.id
+    if payload.professional_id is not None and payload.professional_id != current_user.id:
+        if not actor_is_admin(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can assign a different professional.",
+            )
+        candidate = db.get(User, payload.professional_id)
+        # The ORM auto-filter scopes ``db.get`` lookups to the caller's gym,
+        # so a cross-gym id reads as missing — exactly what we want.
+        if candidate is None or not candidate.active:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assigned professional not found in your gym.",
+            )
+        non_client_roles = {ur.role.name for ur in candidate.roles if ur.role.active} - {"client"}
+        if not non_client_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The assigned user is not a professional.",
+            )
+        assigned_professional_id = candidate.id
+
     user = User(
         gym_id=current_user.gym_id,
         full_name=payload.full_name.strip(),
@@ -97,7 +125,7 @@ def create_client(
 
     relation = UserRelation(
         gym_id=current_user.gym_id,
-        professional_id=current_user.id,
+        professional_id=assigned_professional_id,
         client_id=user.id,
         relation_type="trainer_client",
         description=(
@@ -121,7 +149,7 @@ def create_client(
             db,
             gym_id=current_user.gym_id,
             client_id=user.id,
-            professional_id=current_user.id,
+            professional_id=assigned_professional_id,
             title=plan_input.title.strip(),
             plan_type=plan_input.plan_type,
             content=plan_input.content,

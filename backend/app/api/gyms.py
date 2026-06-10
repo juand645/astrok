@@ -14,26 +14,34 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import actor_is_admin, get_authenticated_user
+from app.api.deps import actor_is_admin, actor_is_super_admin, get_authenticated_user
 from app.core.database import get_db
 from app.core.security import hash_password
+from app.core.tenancy import apply_gym_scope
 from app.models.gym import Gym
 from app.models.user import Role, User, UserRole
 from app.schemas.gym import GymCreate, GymRead, GymUpdate
+from app.services.storage import (
+    InvalidImageError,
+    StorageNotConfiguredError,
+    delete_gym_logo,
+    storage_is_configured,
+    upload_gym_logo,
+)
 
 router = APIRouter()
 
 
-def _require_admin(actor: User) -> None:
-    if not actor_is_admin(actor):
+def _require_super_admin(actor: User) -> None:
+    if not actor_is_super_admin(actor):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can manage gyms.",
+            detail="Only platform super-admins can manage gyms.",
         )
 
 
@@ -42,8 +50,8 @@ def list_gyms(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> list[Gym]:
-    """List every gym on the platform (admin-only)."""
-    _require_admin(current_user)
+    """List every gym on the platform. Super-admin only."""
+    _require_super_admin(current_user)
     return list(db.scalars(select(Gym).order_by(Gym.name)))
 
 
@@ -74,14 +82,16 @@ def create_gym(
 
     Without the bootstrap admin the gym would be unreachable — no one could
     log in to it. The new admin is created in the new gym (``gym_id`` set to
-    the new row's id), so existing-gym users are unaffected.
+    the new row's id) with the ``admin`` role, NOT ``super_admin``: every
+    gym is supposed to have its own admin, but only platform operators get
+    cross-gym powers.
 
     Raises:
-        403: Caller is not an admin.
+        403: Caller is not a super-admin.
         409: A gym with this slug already exists.
         500: The 'admin' role is missing from the seed data.
     """
-    _require_admin(current_user)
+    _require_super_admin(current_user)
 
     existing_slug = db.scalar(select(Gym).where(Gym.slug == payload.slug))
     if existing_slug is not None:
@@ -106,6 +116,20 @@ def create_gym(
     db.add(gym)
     db.flush()  # populate gym.id
 
+    # Switch the request's gym scope to the NEW gym before inserting the
+    # bootstrap admin. Reason: SQLAlchemy emits ``INSERT ... RETURNING id`` to
+    # fetch the auto-generated PK, and Postgres evaluates BOTH the INSERT
+    # WITH CHECK clause AND the SELECT USING clause against the new row when
+    # RETURNING is involved. Our INSERT policy is permissive, but the SELECT
+    # policy filters by ``gym_id = current_setting('app.current_gym_id')``.
+    # Without switching the GUC, the SELECT-for-RETURNING fails with
+    # "new record violates row-security policy".
+    #
+    # We don't restore the original scope after — the transaction commits
+    # right after this and the request is done with tenant data. The next
+    # request gets a fresh scope from get_authenticated_user anyway.
+    apply_gym_scope(db, gym.id)
+
     bootstrap_admin = User(
         gym_id=gym.id,
         full_name=payload.admin.full_name.strip(),
@@ -129,6 +153,17 @@ def create_gym(
     return gym
 
 
+def _assert_can_manage_gym(actor: User, gym_id: int) -> None:
+    """Caller must be a super_admin OR the local admin of the target gym."""
+    is_super = actor_is_super_admin(actor)
+    is_local_admin = actor_is_admin(actor) and gym_id == actor.gym_id
+    if not (is_super or is_local_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage your own gym.",
+        )
+
+
 @router.patch("/{gym_id}", response_model=GymRead)
 def update_gym(
     gym_id: int,
@@ -136,19 +171,14 @@ def update_gym(
     current_user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> Gym:
-    """Patch a gym's display fields. Admin-only.
+    """Patch a gym's display fields.
 
-    Only the caller's own gym can be updated unless the caller is an admin of
-    that gym. (Today every admin is gym-scoped, so this naturally restricts
-    cross-gym editing — when a ``super_admin`` role lands later, relax this.)
+    Access rules:
+      * ``super_admin``: may patch any gym.
+      * ``admin``: may patch only their own gym (rename, recolor logo, etc.).
+      * Anyone else: 403.
     """
-    _require_admin(current_user)
-
-    if gym_id != current_user.gym_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only manage your own gym.",
-        )
+    _assert_can_manage_gym(current_user, gym_id)
 
     gym = db.get(Gym, gym_id)
     if gym is None:
@@ -163,6 +193,87 @@ def update_gym(
     if payload.active is not None:
         gym.active = payload.active
 
+    gym.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(gym)
+    return gym
+
+
+@router.post("/{gym_id}/logo", response_model=GymRead)
+async def upload_logo(
+    gym_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> Gym:
+    """Replace the gym's logo image.
+
+    Body: multipart/form-data with a ``file`` field. Any common image format
+    (JPEG/PNG/WebP/HEIC) works. The server center-crops to a square, resizes
+    to 256×256, encodes as WebP, and stores at ``gym-logos/<gym_id>.webp``
+    on the object store. The cache-busted URL is written back to
+    ``gyms.logo_url``.
+
+    Access rules mirror PATCH: super_admin can upload to any gym; gym-level
+    admins can only upload to their own gym.
+    """
+    _assert_can_manage_gym(current_user, gym_id)
+
+    if not storage_is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Logo uploads are not configured on this server.",
+        )
+
+    gym = db.get(Gym, gym_id)
+    if gym is None:
+        raise HTTPException(status_code=404, detail="Gym not found.")
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty upload.")
+
+    try:
+        url = upload_gym_logo(gym_id=gym.id, raw=raw)
+    except InvalidImageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StorageNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    gym.logo_url = url
+    gym.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(gym)
+    return gym
+
+
+@router.delete("/{gym_id}/logo", response_model=GymRead)
+def remove_logo(
+    gym_id: int,
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> Gym:
+    """Clear the gym's logo (delete the object + null the URL).
+
+    Storage delete is best-effort: failures there don't block the DB write,
+    since a stale object with no DB pointer is harmless and the user can
+    re-upload to overwrite anyway.
+    """
+    _assert_can_manage_gym(current_user, gym_id)
+
+    gym = db.get(Gym, gym_id)
+    if gym is None:
+        raise HTTPException(status_code=404, detail="Gym not found.")
+
+    if gym.logo_url:
+        try:
+            delete_gym_logo(gym.id)
+        except Exception:  # noqa: BLE001
+            pass
+
+    gym.logo_url = None
     gym.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(gym)
