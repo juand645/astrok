@@ -30,3 +30,16 @@ class ProfileUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8)
+
+
+class PasswordResetRequest(BaseModel):
+    """User asks for a reset email — accepts either username or email."""
+
+    identifier: str = Field(min_length=1)
+
+
+class PasswordResetRedeem(BaseModel):
+    """User submits the link's token + the new password they want to set."""
+
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)

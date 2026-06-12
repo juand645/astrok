@@ -282,9 +282,27 @@
       "confirmDelete": "¿Eliminar (suave) a {{name}}? Sus planes, sesiones e historial se mantienen y se puede reactivar después.",
       "plansHeading": "Planes",
       "addPlan": "Agregar plan",
+      "rmCalculator": "Calculadora RM",
       "noPlans": "Aún no hay planes para este cliente.",
       "coachAriaLabel": "Coach de planes",
       "generateWithAi": "Generar un plan con IA"
+    },
+    "rmCalculator": {
+      "title": "Calculadora de repetición máxima",
+      "intro": "Estima la RM del cliente a partir de cualquier serie. Introduce el peso levantado y las repeticiones limpias realizadas — la tabla convierte la RM en pesos objetivo para los rangos de repeticiones que sueles programar.",
+      "weight": "Peso levantado",
+      "reps": "Repeticiones",
+      "unitKg": "kg",
+      "unitLb": "lb",
+      "calculate": "Calcular RM",
+      "reset": "Limpiar",
+      "errorInvalid": "Introduce un peso positivo y entre 1 y 30 repeticiones.",
+      "result": "RM estimada: {{weight}} {{unit}}",
+      "resultHint": "Fórmula de Brzycki. Es más precisa entre 1 y 10 repeticiones; con más repeticiones úsala como referencia.",
+      "tablePercentage": "Porcentaje de la RM",
+      "tableWeight": "Peso objetivo",
+      "tableReps": "Repeticiones típicas",
+      "close": "Cerrar"
     },
     "new": {
       "ariaLabel": "Nuevo cliente",
@@ -681,7 +699,33 @@
     "passwordLabel": "Contraseña",
     "signIn": "Iniciar sesión",
     "signingIn": "Entrando…",
-    "errorFallback": "No se pudo iniciar sesión."
+    "errorFallback": "No se pudo iniciar sesión.",
+    "forgotPassword": "¿Olvidaste tu contraseña?"
+  },
+  "passwordReset": {
+    "request": {
+      "title": "Restablecer tu contraseña",
+      "intro": "Ingresa tu usuario o correo. Si existe una cuenta, te enviaremos un enlace para restablecerla.",
+      "submit": "Enviar enlace",
+      "submitting": "Enviando…",
+      "back": "Volver al inicio de sesión",
+      "success": "Si existe una cuenta, recibirás un correo con instrucciones en breve.",
+      "errorFallback": "No se pudo enviar la solicitud."
+    },
+    "redeem": {
+      "title": "Elige una nueva contraseña",
+      "intro": "Escribe una nueva contraseña para tu cuenta. El enlace de tu correo es de un solo uso y expira en una hora.",
+      "newPassword": "Nueva contraseña (mín. 8 caracteres)",
+      "confirmPassword": "Confirmar nueva contraseña",
+      "submit": "Guardar nueva contraseña",
+      "submitting": "Guardando…",
+      "success": "Contraseña actualizada. Ya puedes iniciar sesión con la nueva.",
+      "signInNow": "Ir al inicio de sesión",
+      "errorMismatch": "Las dos contraseñas no coinciden.",
+      "errorTooShort": "La contraseña debe tener al menos 8 caracteres.",
+      "errorInvalid": "El enlace de restablecimiento es inválido o ha expirado. Solicita uno nuevo.",
+      "errorMissingToken": "Esta página requiere un token de restablecimiento del enlace del correo."
+    }
   },
   "profile": {
     "ariaLabel": "Perfil",

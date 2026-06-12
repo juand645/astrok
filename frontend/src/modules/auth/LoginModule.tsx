@@ -5,9 +5,10 @@ import { AuthUser, GYM_SLUG_STORAGE_KEY, login } from "../../api";
 
 type LoginModuleProps = {
   onLogin: (accessToken: string, user: AuthUser, gymSlug: string) => void;
+  onForgotPassword: () => void;
 };
 
-export function LoginModule({ onLogin }: LoginModuleProps) {
+export function LoginModule({ onLogin, onForgotPassword }: LoginModuleProps) {
   const { t } = useTranslation();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -96,6 +97,14 @@ export function LoginModule({ onLogin }: LoginModuleProps) {
           <button className="primary-button full-width" disabled={isLoading} type="submit">
             <LogIn size={18} />
             {isLoading ? t("login.signingIn") : t("login.signIn")}
+          </button>
+
+          <button
+            type="button"
+            className="ghost-button full-width"
+            onClick={onForgotPassword}
+          >
+            {t("login.forgotPassword")}
           </button>
         </form>
       </section>

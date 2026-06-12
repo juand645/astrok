@@ -17,6 +17,8 @@ import { useTranslation } from "react-i18next";
 import { AuthUser, GYM_SLUG_STORAGE_KEY, Gym, fetchMyGym, getCurrentUser } from "./api";
 import { pickContrastTextColor } from "./utils/contrast";
 import { LoginModule } from "./modules/auth/LoginModule";
+import { PasswordResetRedeemModule } from "./modules/auth/PasswordResetRedeemModule";
+import { PasswordResetRequestModule } from "./modules/auth/PasswordResetRequestModule";
 import { ClientDetailModule } from "./modules/clients/ClientDetailModule";
 import { ClientsModule } from "./modules/clients/ClientsModule";
 import { NewClientModule } from "./modules/clients/NewClientModule";
@@ -43,10 +45,28 @@ type ActiveView =
   | "health"
   | "profile";
 
+/** Read ``?token=...`` off the current URL when the user lands on /reset.
+ *  Returns null when the path doesn't match or the token query param is missing. */
+function readResetTokenFromLocation(): string | null {
+  if (typeof window === "undefined") return null;
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path !== "/reset") return null;
+  const token = new URLSearchParams(window.location.search).get("token");
+  return token && token.trim() ? token : null;
+}
+
+type AuthScreen = "login" | "resetRequest" | "resetRedeem";
+
 export function App() {
   const { t } = useTranslation();
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [accessToken, setAccessToken] = useState(() => localStorage.getItem("gym_access_token"));
+  // Drives which screen renders pre-auth: the login form, the "I forgot"
+  // request form, or the redeem form for a token in the URL.
+  const [authScreen, setAuthScreen] = useState<AuthScreen>(() =>
+    readResetTokenFromLocation() !== null ? "resetRedeem" : "login",
+  );
+  const [resetToken] = useState<string | null>(() => readResetTokenFromLocation());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [currentGym, setCurrentGym] = useState<Gym | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(Boolean(accessToken));
@@ -163,7 +183,30 @@ export function App() {
   }
 
   if (!accessToken || !currentUser) {
-    return <LoginModule onLogin={handleLogin} />;
+    if (authScreen === "resetRedeem") {
+      return (
+        <PasswordResetRedeemModule
+          token={resetToken}
+          onDone={() => {
+            // Clear ?token= from the URL so a refresh doesn't re-enter the
+            // redeem screen, then drop the user on the login form.
+            if (typeof window !== "undefined") {
+              window.history.replaceState({}, "", "/");
+            }
+            setAuthScreen("login");
+          }}
+        />
+      );
+    }
+    if (authScreen === "resetRequest") {
+      return <PasswordResetRequestModule onBack={() => setAuthScreen("login")} />;
+    }
+    return (
+      <LoginModule
+        onLogin={handleLogin}
+        onForgotPassword={() => setAuthScreen("resetRequest")}
+      />
+    );
   }
 
   const isClient = currentUser.roles.includes("client");

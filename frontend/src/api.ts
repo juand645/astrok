@@ -162,6 +162,42 @@ export type LoginResponse = {
   user: AuthUser;
 };
 
+export async function requestPasswordReset(
+  identifier: string,
+  gymSlug?: string,
+): Promise<void> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const trimmedSlug = gymSlug?.trim();
+  if (trimmedSlug) {
+    headers["X-Gym-Slug"] = trimmedSlug;
+  }
+  const response = await fetch(`${API_URL}/api/auth/password-reset/request`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ identifier }),
+  });
+  // The backend always returns 204 to prevent user enumeration; any non-204
+  // is a true error worth surfacing (server down, etc.).
+  if (!response.ok) {
+    throw new Error("Could not submit reset request.");
+  }
+}
+
+export async function redeemPasswordReset(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/auth/password-reset/redeem`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Reset link is invalid or has expired.");
+  }
+}
+
 export async function login(
   identifier: string,
   password: string,

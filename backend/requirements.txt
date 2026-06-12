@@ -22,6 +22,7 @@ pydantic-settings==2.14.1
 pydantic_core==2.46.4
 PyJWT==2.12.1
 python-dotenv==1.2.2
+resend==2.4.0
 python-multipart==0.0.29
 PyYAML==6.0.3
 SQLAlchemy==2.0.49

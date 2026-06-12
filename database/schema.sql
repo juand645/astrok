@@ -245,6 +245,23 @@ CREATE TABLE astrok.par_q_assessments (
 );
 
 -- =============================================================================
+-- Password reset tokens (single-use, time-limited, NOT gym-scoped)
+--
+-- The redeem endpoint runs unauthenticated, so we can't set a gym GUC before
+-- looking up the row. Security comes from the cryptographic token itself —
+-- 32 bytes of secure-random base64, stored only as a SHA-256 hash.
+-- =============================================================================
+
+CREATE TABLE astrok.password_reset_tokens (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES astrok.users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =============================================================================
 -- Indexes
 -- =============================================================================
 
@@ -301,6 +318,11 @@ CREATE INDEX idx_par_q_client_completed
     ON astrok.par_q_assessments (client_id, completed_at DESC NULLS LAST);
 CREATE INDEX idx_par_q_gym_client_status
     ON astrok.par_q_assessments (gym_id, client_id, status);
+
+CREATE INDEX idx_password_reset_tokens_user
+    ON astrok.password_reset_tokens(user_id);
+CREATE INDEX idx_password_reset_tokens_active
+    ON astrok.password_reset_tokens(user_id) WHERE used_at IS NULL;
 
 -- =============================================================================
 -- Row-Level Security (defense in depth for multi-tenancy)

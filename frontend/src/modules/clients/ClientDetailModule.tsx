@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, IdCard, Mail, Phone, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Calculator, IdCard, Mail, Phone, Plus, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ClientDetail,
@@ -13,6 +13,7 @@ import { ClientNotesPanel } from "./ClientNotesPanel";
 import { HealthScreeningCard } from "./HealthScreeningCard";
 import { MeasuresHistoryPanel } from "./MeasuresHistoryPanel";
 import { MeasuresPanel } from "./MeasuresPanel";
+import { OneRepMaxModule } from "./OneRepMaxModule";
 import { PlanCoachPanel } from "./PlanCoachPanel";
 import { PlanPanel } from "./PlanPanel";
 import { formatBirthDate, getInitials } from "./clientDetailUtils";
@@ -37,6 +38,7 @@ export function ClientDetailModule({
   const [error, setError] = useState<string | null>(null);
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [isCoachOpen, setIsCoachOpen] = useState(false);
+  const [isRmCalculatorOpen, setIsRmCalculatorOpen] = useState(false);
   // Bumped after a successful save in MeasuresPanel so the history panel
   // re-fetches and shows the new entry without a page reload.
   const [measuresReloadKey, setMeasuresReloadKey] = useState(0);
@@ -183,15 +185,24 @@ export function ClientDetailModule({
       <section className="panel-stack">
         <div className="section-header">
           <h2>{t("clients.detail.plansHeading")}</h2>
-          {!isAddingPlan ? (
+          <div className="section-header-actions">
             <button
               type="button"
-              className="primary-button"
-              onClick={() => setIsAddingPlan(true)}
+              className="secondary-button"
+              onClick={() => setIsRmCalculatorOpen(true)}
             >
-              <Plus size={16} /> {t("clients.detail.addPlan")}
+              <Calculator size={16} /> {t("clients.detail.rmCalculator")}
             </button>
-          ) : null}
+            {!isAddingPlan ? (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setIsAddingPlan(true)}
+              >
+                <Plus size={16} /> {t("clients.detail.addPlan")}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {plans.length === 0 && !isAddingPlan ? (
@@ -246,6 +257,10 @@ export function ClientDetailModule({
           />
         )}
       </section>
+
+      {isRmCalculatorOpen ? (
+        <OneRepMaxModule onClose={() => setIsRmCalculatorOpen(false)} />
+      ) : null}
     </section>
   );
 }

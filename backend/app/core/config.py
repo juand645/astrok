@@ -27,6 +27,23 @@ class Settings(BaseSettings):
     r2_public_url: str = ""  # e.g. https://pub-<hash>.r2.dev or a custom domain
     r2_endpoint_url: str | None = None  # auto-derived from account_id when blank
 
+    # Transactional email. ``EMAIL_PROVIDER`` blank = fall back to console
+    # logging (the dev workflow: copy the reset URL from the backend log).
+    # Currently the only recognized provider is ``resend``.
+    email_provider: str = ""
+    email_api_key: str = ""
+    email_from: str = ""  # e.g. "no-reply@yourgym.com"
+
+    # Public base URL the frontend serves under — embedded into the password
+    # reset email so the link points back at the right deployment. Override
+    # per environment (dev local, Vercel preview, Railway prod).
+    app_base_url: str = "http://localhost:5173"
+
+    # How long a password-reset token stays valid. 60 minutes balances "user
+    # got distracted between request and email" with the security cost of
+    # holding a usable token in their inbox.
+    password_reset_token_ttl_minutes: int = 60
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property

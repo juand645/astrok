@@ -1,23 +1,31 @@
-from datetime import UTC, datetime
+import hashlib
+import secrets
+from datetime import UTC, datetime, timedelta
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, UploadFile, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_authenticated_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.core.tenancy import apply_gym_scope
 from app.models.gym import DEFAULT_GYM_SLUG, Gym
+from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.models.user_relation import UserRelation
 from app.schemas.auth import (
     LoginRequest,
     PasswordChange,
+    PasswordResetRedeem,
+    PasswordResetRequest,
     ProfileUpdate,
     TokenResponse,
 )
 from app.schemas.user import UserRead
+from app.services.email import send_password_reset_email
 from app.services.storage import (
     InvalidImageError,
     StorageNotConfiguredError,
@@ -27,6 +35,11 @@ from app.services.storage import (
 )
 
 router = APIRouter()
+
+
+def _hash_reset_token(raw_token: str) -> str:
+    """SHA-256 of the raw token — what we actually store in the DB."""
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -178,6 +191,144 @@ def change_password(
 
     current_user.password_hash = hash_password(payload.new_password)
     current_user.updated_at = datetime.now(UTC)
+    db.commit()
+
+
+@router.post("/password-reset/request", status_code=status.HTTP_204_NO_CONTENT)
+def request_password_reset(
+    payload: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    x_gym_slug: str | None = Header(default=None, alias="X-Gym-Slug"),
+) -> None:
+    """Trigger a password-reset email for the user matching the identifier in the
+    given gym.
+
+    Body:
+        identifier: username OR email.
+    Header:
+        X-Gym-Slug: which gym to look in; falls back to ``default``.
+
+    ALWAYS returns 204 — regardless of whether the user exists, whether they
+    are active, whether the email send succeeded. Returning anything else
+    leaks "this email is registered" / "this gym has a user named X" to
+    anonymous attackers.
+
+    Invalidates any previously-issued un-used tokens for the matched user, so
+    a forgotten request in someone's inbox can't be replayed after a fresh
+    one is requested.
+    """
+    gym_slug = (x_gym_slug or DEFAULT_GYM_SLUG).strip()
+    gym = db.scalar(select(Gym).where(Gym.slug == gym_slug, Gym.active.is_(True)))
+    if gym is None:
+        # No-op for unknown gym — same response shape as the happy path.
+        return
+
+    # Scope subsequent ORM lookups to this gym so the user SELECT passes RLS.
+    apply_gym_scope(db, gym.id)
+
+    user = db.scalar(
+        select(User).where(
+            User.gym_id == gym.id,
+            or_(
+                User.username == payload.identifier,
+                User.email == payload.identifier,
+            ),
+        )
+    )
+    if user is None or not user.active:
+        return
+
+    # Invalidate prior un-used tokens so old emails can't be replayed.
+    now = datetime.now(UTC)
+    existing = db.scalars(
+        select(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+    ).all()
+    for prior in existing:
+        prior.used_at = now
+
+    raw_token = secrets.token_urlsafe(32)
+    record = PasswordResetToken(
+        user_id=user.id,
+        token_hash=_hash_reset_token(raw_token),
+        expires_at=now + timedelta(minutes=settings.password_reset_token_ttl_minutes),
+    )
+    db.add(record)
+    db.commit()
+
+    reset_url = (
+        settings.app_base_url.rstrip("/")
+        + "/reset?"
+        + urlencode({"token": raw_token})
+    )
+
+    # Send in a background task so a slow/failing provider doesn't stretch
+    # the request's response time (and never leaks send-status to the caller).
+    background_tasks.add_task(
+        send_password_reset_email,
+        to_email=user.email,
+        full_name=user.full_name,
+        reset_url=reset_url,
+    )
+
+
+@router.post("/password-reset/redeem", status_code=status.HTTP_204_NO_CONTENT)
+def redeem_password_reset(
+    payload: PasswordResetRedeem,
+    db: Session = Depends(get_db),
+) -> None:
+    """Validate a reset token and set the user's new password.
+
+    Body:
+        token: the raw URL-safe string from the email link.
+        new_password: plain text, min 8 chars.
+
+    Failure modes all return the same 400 + same message — never leak which
+    of (missing / expired / already used / user deactivated) actually fired.
+
+    On success: stamps ``used_at = NOW()`` on the token (single-use) and
+    updates ``users.password_hash``. Existing JWTs are NOT invalidated
+    server-side — matches the existing change-password behavior. If you want
+    forced re-login after a reset, add a ``token_version`` column later.
+    """
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Reset link is invalid or has expired. Request a new one.",
+    )
+
+    record = db.scalar(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == _hash_reset_token(payload.token)
+        )
+    )
+    if record is None or record.used_at is not None:
+        raise invalid
+
+    # ``expires_at`` is declared TIMESTAMPTZ — Postgres rounds-trips this as
+    # tz-aware, but SQLite (tests, dev fallback) strips the tzinfo on read.
+    # Normalize to UTC before comparing so we don't blow up with
+    # "can't compare offset-naive and offset-aware datetimes" on SQLite.
+    stored_expires = record.expires_at
+    if stored_expires.tzinfo is None:
+        stored_expires = stored_expires.replace(tzinfo=UTC)
+    if stored_expires < datetime.now(UTC):
+        raise invalid
+
+    # The token table itself isn't gym-scoped, so this lookup runs without a
+    # gym filter. We re-scope to the user's gym afterward in case anything
+    # downstream needs it (and so the user UPDATE passes the RLS UPDATE policy).
+    user = db.get(User, record.user_id)
+    if user is None or not user.active:
+        raise invalid
+
+    apply_gym_scope(db, user.gym_id)
+
+    user.password_hash = hash_password(payload.new_password)
+    user.updated_at = datetime.now(UTC)
+    record.used_at = datetime.now(UTC)
     db.commit()
 
 

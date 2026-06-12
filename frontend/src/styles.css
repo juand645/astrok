@@ -197,6 +197,65 @@ button {
   margin: 8px 0 0;
 }
 
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Dual-class selector — beats the base ``.modal-panel { width: min(100%, 420px) }``
+ * rule which is defined further down in this file. Without this the modal
+ * would be clamped to 420 px regardless of our max-width, and the percentage
+ * table inside would visually crunch toward the right edge because its
+ * rightmost "Typical reps" column has tiny values. */
+.modal-panel.rm-modal-panel {
+  width: min(100%, 640px);
+  max-width: none;
+  /* Repeat the symmetric padding explicitly so any future tweak to the
+   * base rule can't accidentally make our larger panel look uneven. */
+  padding: 24px;
+}
+
+.rm-weight-row {
+  display: flex;
+  gap: 8px;
+}
+
+.rm-weight-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rm-weight-row select {
+  flex: 0 0 auto;
+  min-width: 72px;
+}
+
+.rm-result {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8e0;
+}
+
+.rm-result-headline {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+}
+
+/* Equal-width columns so the table fills the modal symmetrically. Without
+ * this, the rightmost column ("Typical reps") collapses around its 1–2 char
+ * values and leaves a visual gap on the right side of the panel. */
+.rm-result .detail-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.rm-result .detail-table th,
+.rm-result .detail-table td {
+  padding: 8px 12px;
+}
+
 .brand strong,
 .brand span {
   display: block;
@@ -1358,11 +1417,17 @@ h1 {
   color: #165b33;
 }
 
-.parq-review-modal {
-  max-width: 640px;
+/* Dual-class selector beats the later-declared base ``.modal-panel {
+ * width: min(100%, 420px) }`` rule — otherwise this modal is silently
+ * clamped to 420 px and the PAR-Q answer list (10+ questions with answers
+ * and follow-ups) feels cramped on the right side. Same fix as the RM
+ * calculator modal — see the comment on ``.modal-panel.rm-modal-panel``. */
+.modal-panel.parq-review-modal {
   width: min(100%, 640px);
+  max-width: none;
   max-height: 85vh;
   overflow-y: auto;
+  padding: 24px;
 }
 
 .dash-greeting {

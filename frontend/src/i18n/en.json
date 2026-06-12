@@ -282,9 +282,27 @@
       "confirmDelete": "Soft-delete {{name}}? Their plans, sessions, and history stay intact and they can be reactivated later.",
       "plansHeading": "Plans",
       "addPlan": "Add plan",
+      "rmCalculator": "RM calculator",
       "noPlans": "No plans yet for this client.",
       "coachAriaLabel": "Plan coach",
       "generateWithAi": "Generate a plan with AI"
+    },
+    "rmCalculator": {
+      "title": "One-rep max calculator",
+      "intro": "Estimate the client's 1RM from any set. Enter the weight lifted and the number of clean reps performed — the table below converts the 1RM into target weights for the rep ranges you typically program.",
+      "weight": "Weight lifted",
+      "reps": "Repetitions",
+      "unitKg": "kg",
+      "unitLb": "lb",
+      "calculate": "Calculate 1RM",
+      "reset": "Reset",
+      "errorInvalid": "Enter a positive weight and 1–30 repetitions.",
+      "result": "Estimated 1RM: {{weight}} {{unit}}",
+      "resultHint": "Brzycki formula. Best accuracy in the 1–10 rep range; treat higher-rep estimates as a guide.",
+      "tablePercentage": "Percentage of 1RM",
+      "tableWeight": "Target weight",
+      "tableReps": "Typical reps",
+      "close": "Close"
     },
     "new": {
       "ariaLabel": "New client",
@@ -681,7 +699,33 @@
     "passwordLabel": "Password",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
-    "errorFallback": "Could not sign in."
+    "errorFallback": "Could not sign in.",
+    "forgotPassword": "Forgot password?"
+  },
+  "passwordReset": {
+    "request": {
+      "title": "Reset your password",
+      "intro": "Enter your username or email and we'll send a reset link if an account exists.",
+      "submit": "Send reset link",
+      "submitting": "Sending…",
+      "back": "Back to sign in",
+      "success": "If an account exists, you'll receive an email shortly with instructions.",
+      "errorFallback": "Could not submit the reset request."
+    },
+    "redeem": {
+      "title": "Choose a new password",
+      "intro": "Type a new password for your account. The link in your email is single-use and expires after an hour.",
+      "newPassword": "New password (min 8 chars)",
+      "confirmPassword": "Confirm new password",
+      "submit": "Set new password",
+      "submitting": "Saving…",
+      "success": "Password updated. You can sign in with the new one now.",
+      "signInNow": "Go to sign in",
+      "errorMismatch": "The two passwords don't match.",
+      "errorTooShort": "Password must be at least 8 characters.",
+      "errorInvalid": "Reset link is invalid or has expired. Request a new one.",
+      "errorMissingToken": "This page requires a reset token from the email link."
+    }
   },
   "profile": {
     "ariaLabel": "Profile",
