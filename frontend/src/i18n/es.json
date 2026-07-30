@@ -355,7 +355,46 @@
       "save": "Guardar notas",
       "saving": "Guardando...",
       "saved": "Guardado.",
-      "errorSave": "No se pudo guardar."
+      "errorSave": "No se pudo guardar.",
+      "templates": {
+        "prompt": "Insertar plantilla…",
+        "goals": {
+          "title": "Objetivos y compromiso",
+          "body": "## Objetivos y compromiso\n- ¿Qué te motivó a comenzar (o continuar) tu proceso de entrenamiento?\n  → \n- Objetivo principal (3 a 6 meses):\n  → \n- ¿Cómo te gustaría sentirte en un año respecto a tu cuerpo y tu salud?\n  → \n"
+        },
+        "habits": {
+          "title": "Hábitos actuales",
+          "body": "## Hábitos actuales\n- Frecuencia de entrenamiento actual (no entreno / 1–2× / 3–4× / 5+× por semana):\n  → \n- ¿Cómo describirías tu alimentación (balanceada / desordenada / improvisada / estricta)?\n  → \n"
+        },
+        "sleep": {
+          "title": "Sueño y disponibilidad",
+          "body": "## Sueño y disponibilidad\n- Promedio de horas de sueño por noche (menos de 6h / 6–7h / más de 7h):\n  → \n- ¿Cuántos días te comprometes a entrenar por semana?\n  → \n- ¿Tienes hábitos que podrían estar afectando tus objetivos?\n  → \n- ¿Cuánto tiempo por sesión?\n  → \n- ¿Qué días y horas son más viables para ti?\n  → \n"
+        },
+        "commitment": {
+          "title": "Compromiso y motivación",
+          "body": "## Compromiso y motivación\n- Principales responsabilidades o compromisos que pueden interferir:\n  → \n- En una escala del 1 al 10, ¿qué tan comprometido(a) estás con tus metas? ¿Por qué?\n  → \n- ¿Qué cambios estás dispuesto(a) a hacer?\n  → \n- ¿Qué obstáculos han limitado tu progreso en el pasado?\n  → \n- ¿Qué necesitas de tu entrenador(a) para mantenerte motivado(a)?\n  → \n"
+        },
+        "history": {
+          "title": "Historial de entrenamiento",
+          "body": "## Historial de entrenamiento\n- Años entrenando de forma constante:\n  → \n- Programas o entrenadores anteriores:\n  → \n- Mejores marcas conocidas (bench / sentadilla / peso muerto / otras):\n  → \n- Lesiones pasadas ya recuperadas:\n  → \n"
+        },
+        "pain": {
+          "title": "Dolor o molestias actuales",
+          "body": "## Dolor o molestias actuales\n- Zonas con molestia actual (rodilla, hombro, lumbar…):\n  → \n- Intensidad 1–10:\n  → \n- Movimientos que la agravan:\n  → \n- Tiempo con la molestia, y diagnóstico o tratamiento en curso:\n  → \n"
+        },
+        "recovery": {
+          "title": "Recuperación y estrés",
+          "body": "## Recuperación y estrés\n- Nivel de estrés general 1–10:\n  → \n- Intensidad física de tu jornada laboral:\n  → \n- Descanso típico entre sesiones:\n  → \n- Rutina actual de movilidad o estiramientos:\n  → \n"
+        },
+        "equipment": {
+          "title": "Equipamiento y contexto",
+          "body": "## Equipamiento y contexto\n- Lugar de entrenamiento (gimnasio / casa / ambos):\n  → \n- Equipo disponible en casa:\n  → \n- Frecuencia de viajes (semanas fuera al año):\n  → \n"
+        },
+        "communication": {
+          "title": "Comunicación y emergencia",
+          "body": "## Comunicación y emergencia\n- Canal preferido (WhatsApp / correo / en sesión):\n  → \n- Contacto de emergencia — nombre, teléfono, relación:\n  → \n"
+        }
+      }
     },
     "measures": {
       "heading": "Medidas",
@@ -386,6 +425,35 @@
       "notesLabel": "Notas:",
       "show": "Mostrar historial",
       "hide": "Ocultar historial"
+    },
+    "measuresTrends": {
+      "heading": "Tendencias",
+      "hint": "Una gráfica por métrica que el cliente haya registrado al menos dos veces. La última lectura aparece a la derecha.",
+      "loading": "Cargando tendencias…",
+      "errorLoad": "No se pudieron cargar las tendencias.",
+      "empty": "Aún no hay tendencias — registra algunas mediciones primero.",
+      "readingCount_one": "{{count}} lectura",
+      "readingCount_other": "{{count}} lecturas"
+    },
+    "exerciseProgression": {
+      "heading": "Progresión por ejercicio",
+      "hint": "Elige un ejercicio para ver su evolución. El 1RM estimado se calcula con la fórmula de Brzycki sobre el peso × reps registrados.",
+      "loading": "Cargando sesiones…",
+      "errorLoad": "No se pudieron cargar las sesiones.",
+      "empty": "Aún no hay sesiones registradas. Registra algunas para activar esta vista.",
+      "notEnoughData": "Solo hay una sesión registrada para este ejercicio — registra otra para trazar la línea.",
+      "exerciseLabel": "Ejercicio",
+      "metricLabel": "Métrica",
+      "metricE1rm": "1RM estimado",
+      "metricWeight": "Peso de trabajo",
+      "entryCount_one": "({{count}} sesión)",
+      "entryCount_other": "({{count}} sesiones)",
+      "vsPrevious": "vs sesión anterior",
+      "tooltipSet": "{{weight}} × {{reps}} reps"
+    },
+    "tabs": {
+      "detail": "Detalle",
+      "trends": "Tendencias"
     },
     "health": {
       "heading": "Tamizaje de salud",
