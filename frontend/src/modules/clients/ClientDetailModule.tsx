@@ -13,9 +13,13 @@ import { ClientNotesPanel } from "./ClientNotesPanel";
 import { HealthScreeningCard } from "./HealthScreeningCard";
 import { MeasuresHistoryPanel } from "./MeasuresHistoryPanel";
 import { MeasuresPanel } from "./MeasuresPanel";
+import { MeasureTrendsPanel } from "./MeasureTrendsPanel";
+import { ExerciseProgressionPanel } from "./ExerciseProgressionPanel";
 import { PlanCoachPanel } from "./PlanCoachPanel";
 import { PlanPanel } from "./PlanPanel";
 import { formatBirthDate, getInitials } from "./clientDetailUtils";
+
+type TabKey = "detail" | "trends";
 
 type ClientDetailModuleProps = {
   accessToken: string;
@@ -40,6 +44,7 @@ export function ClientDetailModule({
   // Bumped after a successful save in MeasuresPanel so the history panel
   // re-fetches and shows the new entry without a page reload.
   const [measuresReloadKey, setMeasuresReloadKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabKey>("detail");
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +164,34 @@ export function ClientDetailModule({
         />
       </header>
 
+      <nav className="client-tabs" role="tablist" aria-label={t("clients.detail.ariaLabel")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "detail"}
+          className={`client-tab ${activeTab === "detail" ? "active" : ""}`}
+          onClick={() => setActiveTab("detail")}
+        >
+          {t("clients.tabs.detail")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "trends"}
+          className={`client-tab ${activeTab === "trends" ? "active" : ""}`}
+          onClick={() => setActiveTab("trends")}
+        >
+          {t("clients.tabs.trends")}
+        </button>
+      </nav>
+
+      {activeTab === "trends" ? (
+        <>
+          <MeasureTrendsPanel accessToken={accessToken} clientId={client.id} />
+          <ExerciseProgressionPanel accessToken={accessToken} clientId={client.id} />
+        </>
+      ) : (
+        <>
       <ClientNotesPanel
         accessToken={accessToken}
         client={client}
@@ -246,6 +279,8 @@ export function ClientDetailModule({
           />
         )}
       </section>
+        </>
+      )}
     </section>
   );
 }

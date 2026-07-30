@@ -337,7 +337,46 @@
       "save": "Save notes",
       "saving": "Saving...",
       "saved": "Saved.",
-      "errorSave": "Save failed."
+      "errorSave": "Save failed.",
+      "templates": {
+        "prompt": "Insert template…",
+        "goals": {
+          "title": "Goals & commitment",
+          "body": "## Goals & commitment\n- What motivated you to start (or continue) your training?\n  → \n- Main goal (3–6 months):\n  → \n- How would you like to feel about your body and health a year from now?\n  → \n"
+        },
+        "habits": {
+          "title": "Current habits",
+          "body": "## Current habits\n- Current training frequency (none / 1–2× / 3–4× / 5+× per week):\n  → \n- How would you describe your nutrition (balanced / disorganized / improvised / strict)?\n  → \n"
+        },
+        "sleep": {
+          "title": "Sleep & availability",
+          "body": "## Sleep & availability\n- Average sleep per night (<6h / 6–7h / >7h):\n  → \n- Days per week you commit to training:\n  → \n- Habits that could affect your goals:\n  → \n- Time available per session:\n  → \n- Days and hours that work best for you:\n  → \n"
+        },
+        "commitment": {
+          "title": "Commitment & motivation",
+          "body": "## Commitment & motivation\n- Main responsibilities that could interfere:\n  → \n- On a scale of 1–10, how committed are you to your goals? Why?\n  → \n- What changes are you willing to make?\n  → \n- What obstacles have limited your progress in the past?\n  → \n- What do you need from your coach to stay motivated?\n  → \n"
+        },
+        "history": {
+          "title": "Training history",
+          "body": "## Training history\n- Years training consistently:\n  → \n- Previous programs or coaches:\n  → \n- Known best lifts (bench / squat / deadlift / other):\n  → \n- Past injuries already recovered from:\n  → \n"
+        },
+        "pain": {
+          "title": "Current pain or discomfort",
+          "body": "## Current pain or discomfort\n- Areas with current discomfort (knee, shoulder, lower back…):\n  → \n- Intensity 1–10:\n  → \n- Movements that aggravate it:\n  → \n- How long, and any diagnosis or ongoing treatment:\n  → \n"
+        },
+        "recovery": {
+          "title": "Recovery & stress",
+          "body": "## Recovery & stress\n- Overall stress level 1–10:\n  → \n- Physical intensity of your workday:\n  → \n- Typical rest between training sessions:\n  → \n- Current mobility or stretching routine:\n  → \n"
+        },
+        "equipment": {
+          "title": "Equipment & context",
+          "body": "## Equipment & context\n- Training location (gym / home / both):\n  → \n- Equipment available at home:\n  → \n- Travel frequency (weeks away per year):\n  → \n"
+        },
+        "communication": {
+          "title": "Communication & emergency",
+          "body": "## Communication & emergency\n- Preferred channel (WhatsApp / email / in-person):\n  → \n- Emergency contact — name, phone, relationship:\n  → \n"
+        }
+      }
     },
     "measures": {
       "heading": "Measures",
@@ -368,6 +407,35 @@
       "notesLabel": "Notes:",
       "show": "Show history",
       "hide": "Hide history"
+    },
+    "measuresTrends": {
+      "heading": "Measurement trends",
+      "hint": "One chart per metric the client has logged at least twice. Latest reading on the right.",
+      "loading": "Loading trends…",
+      "errorLoad": "Could not load measurement trends.",
+      "empty": "No trends to show yet — log a few check-ins first.",
+      "readingCount_one": "{{count}} reading",
+      "readingCount_other": "{{count}} readings"
+    },
+    "exerciseProgression": {
+      "heading": "Exercise progression",
+      "hint": "Pick a lift to see how it has moved over time. e1RM is a Brzycki estimate from the logged weight × reps.",
+      "loading": "Loading sessions…",
+      "errorLoad": "Could not load session history.",
+      "empty": "No logged sets yet. Track a few sessions to unlock this view.",
+      "notEnoughData": "Only one session logged for this exercise — log a second to draw a line.",
+      "exerciseLabel": "Exercise",
+      "metricLabel": "Metric",
+      "metricE1rm": "Estimated 1RM",
+      "metricWeight": "Working weight",
+      "entryCount_one": "({{count}} session)",
+      "entryCount_other": "({{count}} sessions)",
+      "vsPrevious": "vs previous session",
+      "tooltipSet": "{{weight}} × {{reps}} reps"
+    },
+    "tabs": {
+      "detail": "Detail",
+      "trends": "Trends"
     },
     "health": {
       "heading": "Health screening",

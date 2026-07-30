@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "sqlite:///./gym.db"
     database_schema: str | None = None
-    frontend_origin: str = "http://192.168.100.5:5173"
+    frontend_origin: str = "http://192.168.100.77:5173"
     frontend_origins: str | None = None
     ai_provider: str = "anthropic"
     ai_api_key: str = ""

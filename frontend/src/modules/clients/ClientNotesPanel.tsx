@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ClientDetail, updateClient } from "../../api";
+import {
+  DESCRIPTION_TEMPLATE_IDS,
+  DescriptionTemplateId,
+} from "./descriptionTemplates";
 
 type Props = {
   accessToken: string;
@@ -20,6 +24,18 @@ export function ClientNotesPanel({ accessToken, client, onSaved }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackKind, setFeedbackKind] = useState<"ok" | "error">("ok");
+  // Held only long enough to react to onChange, then reset to "" so the same
+  // template can be picked twice in a row (a select doesn't fire onChange
+  // when the value doesn't change).
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+
+  function insertTemplate(id: DescriptionTemplateId) {
+    const body = t(`clients.notes.templates.${id}.body`);
+    setDescription((current) => {
+      const trimmed = current.trimEnd();
+      return trimmed === "" ? body : `${trimmed}\n\n${body}`;
+    });
+  }
 
   useEffect(() => {
     setDescription(client.description ?? "");
@@ -101,15 +117,41 @@ export function ClientNotesPanel({ accessToken, client, onSaved }: Props) {
         />
       </label>
 
-      <label className="field">
-        <span>{t("clients.notes.description")}</span>
+      <div className="field">
+        <div className="field-header">
+          <label htmlFor={`client-description-${client.id}`}>
+            {t("clients.notes.description")}
+          </label>
+          <select
+            className="template-picker"
+            aria-label={t("clients.notes.templates.prompt")}
+            value={selectedTemplate}
+            onChange={(event) => {
+              const id = event.target.value;
+              if (id) {
+                insertTemplate(id as DescriptionTemplateId);
+                setSelectedTemplate("");
+              }
+            }}
+          >
+            <option value="" disabled>
+              {t("clients.notes.templates.prompt")}
+            </option>
+            {DESCRIPTION_TEMPLATE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`clients.notes.templates.${id}.title`)}
+              </option>
+            ))}
+          </select>
+        </div>
         <textarea
-          rows={3}
+          id={`client-description-${client.id}`}
+          rows={8}
           value={description}
           placeholder={t("clients.notes.descriptionPlaceholder")}
           onChange={(event) => setDescription(event.target.value)}
         />
-      </label>
+      </div>
 
       <div className="panel-actions">
         <button
