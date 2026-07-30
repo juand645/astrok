@@ -254,6 +254,8 @@ button {
 .rm-result .detail-table th,
 .rm-result .detail-table td {
   padding: 8px 12px;
+}
+
 .client-tabs {
   display: flex;
   gap: 4px;
